@@ -6,6 +6,19 @@ export const metadata = {
   title: "Food | romanriv.com",
 };
 
+// force this page to run on each request (no static build cache)
+export const dynamic = "force-dynamic";
+
+type PhotoRow = {
+  id: string;
+  title: string | null;
+  description: string | null;
+  image_path: string | null;
+  tags: string[] | null;
+  category: string | null;
+  created_at: string | null;
+};
+
 async function getFoodPhotos(): Promise<GalleryItem[]> {
   const fallback: GalleryItem[] = [
     {
@@ -38,14 +51,22 @@ async function getFoodPhotos(): Promise<GalleryItem[]> {
     .order("created_at", { ascending: false })
     .limit(50);
 
-  if (error || !data || data.length === 0) return fallback;
+  console.log("[getFoodPhotos] error:", error);
+  console.log("[getFoodPhotos] rows:", data?.length);
+  if (data && data.length) {
+    console.log("[getFoodPhotos] first row:", data[0]);
+  }
 
-  return data.map((row) => ({
+  if (error || !data || data.length === 0) {
+    return fallback;
+  }
+
+  return (data as PhotoRow[]).map((row) => ({
     id: row.id,
-    title: row.title,
+    title: row.title ?? "(untitled)",
     subtitle: row.description ?? "",
-    imageUrl: getMediaPublicUrl(row.image_path),
-    tags: (row.tags as string[]) ?? [],
+    imageUrl: getMediaPublicUrl(row.image_path ?? ""),
+    tags: row.tags ?? [],
   }));
 }
 

@@ -23,10 +23,26 @@ export const supabase = createClient(supabaseUrl, anonKey, {
 });
 
 /**
- * Build a public URL for a file in the `media` bucket.
- * Example image_path: 'food/2025-01-10-salmon.jpg'
+ * Build a usable image URL from the value stored in photos.image_path.
+ *
+ * Supports:
+ * - Full URLs: "https://..." -> returned as-is
+ * - Local public files: "/placeholder-food-1.jpg" -> returned as-is
+ * - Storage paths: "food/2025-01-10-salmon.jpg" -> mapped to media bucket
  */
 export function getMediaPublicUrl(imagePath: string): string {
   if (!imagePath) return "";
+
+  // Already a full URL
+  if (imagePath.startsWith("http://") || imagePath.startsWith("https://")) {
+    return imagePath;
+  }
+
+  // Local file in /public (e.g. "/placeholder-food-1.jpg")
+  if (imagePath.startsWith("/")) {
+    return imagePath;
+  }
+
+  // Default: treat as path inside the "media" storage bucket
   return `${supabaseUrl}/storage/v1/object/public/media/${imagePath}`;
 }
