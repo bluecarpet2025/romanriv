@@ -63,7 +63,7 @@ export default function HomePage() {
   ];
 
   return (
-    <div className="mx-auto w-full max-w-3xl space-y-10">
+    <div className="page-shell">
       {/* Intro */}
       <section className="card">
         <h1 className="text-2xl font-bold tracking-tight text-slate-50">
@@ -81,7 +81,7 @@ export default function HomePage() {
         </p>
       </section>
 
-      {/* Food + Cars + Anime */}
+      {/* Food / Cars / Anime */}
       <section className="space-y-4">
         <SectionCard
           title="Food"
@@ -119,10 +119,10 @@ export default function HomePage() {
         </SectionCard>
       </section>
 
-      {/* Business + Discuss */}
+      {/* Business + Recent discussions */}
       <section className="space-y-4">
         <SectionCard
-          title="Business"
+          title="Projects"
           description="Notes and updates on Kiori Solutions, KDP experiments, and other side projects."
           href="/business"
           badge="Work in progress"

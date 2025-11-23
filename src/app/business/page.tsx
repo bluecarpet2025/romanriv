@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ThreadList } from "@/components/ThreadList";
 
 export const metadata = {
-  title: "Business | romanriv.com",
+  title: "Projects | romanriv.com",
 };
 
 const businessThreads = [
@@ -18,10 +18,10 @@ const businessThreads = [
 
 export default function BusinessPage() {
   return (
-    <div className="mx-auto w-full max-w-3xl space-y-10">
+    <div className="page-shell">
       <header className="card">
         <h1 className="text-xl font-bold tracking-tight text-slate-50">
-          Business
+          Projects
         </h1>
         <p className="mt-3 text-sm text-slate-300">
           This is where I keep a public log of the projects I&apos;m building in

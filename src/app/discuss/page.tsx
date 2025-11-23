@@ -38,7 +38,7 @@ const allThreads: ThreadSummary[] = [
 
 export default function DiscussPage() {
   return (
-    <div className="mx-auto w-full max-w-3xl space-y-10">
+    <div className="page-shell">
       <header className="card">
         <h1 className="text-xl font-bold tracking-tight text-slate-50">
           Discuss

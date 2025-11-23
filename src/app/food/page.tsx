@@ -31,7 +31,7 @@ const dummyFood: GalleryItem[] = [
 
 export default function FoodPage() {
   return (
-    <div className="mx-auto w-full max-w-4xl space-y-10">
+    <div className="page-shell-wide">
       <header className="card">
         <h1 className="text-xl font-bold tracking-tight text-slate-50">
           Food

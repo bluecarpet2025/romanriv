@@ -1,9 +1,11 @@
 /* src/app/globals.css */
+
+/* Keep Tailwind directives in case we use them later */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Basic dark theme globals without @apply */
+/* Basic dark theme globals (no @apply) */
 
 :root {
   color-scheme: dark;
@@ -14,15 +16,15 @@ body {
   margin: 0;
   padding: 0;
   min-height: 100%;
-  background-color: #020617; /* bg-slate-950-ish */
-  color: #e5e7eb; /* text-slate-200-ish */
+  background-color: #020617; /* slate-950-ish */
+  color: #e5e7eb; /* slate-200-ish */
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
 }
 
 /* Links */
 a {
-  color: #38bdf8; /* sky-400 */
+  color: #38bdf8; /* sky-400-ish */
   text-decoration: none;
 }
 
@@ -30,24 +32,126 @@ a:hover {
   color: #7dd3fc; /* sky-300-ish */
 }
 
-/* Card utility (used by components) */
+/* ---------- Layout shells ---------- */
+
+.page-shell {
+  max-width: 960px; /* ~3xl-ish */
+  margin: 0 auto;
+  padding: 2.5rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2.5rem;
+}
+
+.page-shell-wide {
+  max-width: 1120px; /* ~4xl-ish */
+  margin: 0 auto;
+  padding: 2.5rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2.5rem;
+}
+
+/* ---------- Top nav ---------- */
+
+.top-nav {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  border-bottom: 1px solid #1f2937; /* slate-800-ish */
+  background-color: rgba(2, 6, 23, 0.9);
+  backdrop-filter: blur(8px);
+}
+
+.top-nav-inner {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0.75rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+}
+
+.top-nav-logo {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.top-nav-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.top-nav-title-accent {
+  color: #38bdf8;
+}
+
+.top-nav-subtitle {
+  font-size: 0.7rem;
+  color: #9ca3af;
+}
+
+.top-nav-links {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.top-nav-links a {
+  padding: 0.35rem 0.9rem;
+  border-radius: 999px;
+  color: #e5e7eb;
+  border: 1px solid transparent;
+  background-color: transparent;
+}
+
+.top-nav-links a:hover {
+  background-color: #020617;
+  border-color: #1e293b;
+}
+
+/* ---------- Footer ---------- */
+
+.footer {
+  border-top: 1px solid #1f2937;
+  background-color: rgba(2, 6, 23, 0.9);
+}
+
+.footer-inner {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0.75rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+/* ---------- Card + section utilities ---------- */
+
 .card {
-  border-radius: 1rem; /* rounded-2xl */
+  border-radius: 1rem;
   border: 1px solid #1e293b; /* border-slate-800 */
   background-color: rgba(15, 23, 42, 0.6); /* bg-slate-900/60 */
   padding: 1rem;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.7);
 }
 
-/* Section title + subtitle */
 .section-title {
-  font-size: 1.125rem; /* text-lg */
+  font-size: 1.125rem;
   font-weight: 600;
   letter-spacing: -0.01em;
-  color: #f9fafb; /* text-slate-50 */
+  color: #f9fafb;
 }
 
 .section-subtitle {
-  font-size: 0.875rem; /* text-sm */
-  color: #9ca3af; /* text-slate-400 */
+  font-size: 0.875rem;
+  color: #9ca3af;
 }
