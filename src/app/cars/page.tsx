@@ -1,35 +1,57 @@
 // src/app/cars/page.tsx
 import { GalleryGrid, GalleryItem } from "@/components/GalleryGrid";
+import { supabase, getMediaPublicUrl } from "@/lib/supabase";
 
 export const metadata = {
   title: "Cars | romanriv.com",
 };
 
-const dummyCars: GalleryItem[] = [
-  {
-    id: 1,
-    title: "2024 GR Corolla Circuit Edition",
-    subtitle: "Blue Ice – current daily and track toy.",
-    imageUrl: "/placeholder-car-1.jpg",
-    tags: ["gr corolla", "circuit edition", "2024"],
-  },
-  {
-    id: 2,
-    title: "2019 Civic Type R",
-    subtitle: "Black, turbo, and a very good time.",
-    imageUrl: "/placeholder-car-2.jpg",
-    tags: ["civic type r", "2019"],
-  },
-  {
-    id: 3,
-    title: "1993 Civic Hatchback",
-    subtitle: "Fully modified, white, and very loud.",
-    imageUrl: "/placeholder-car-3.jpg",
-    tags: ["civic", "hatchback", "1993"],
-  },
-];
+async function getCarPhotos(): Promise<GalleryItem[]> {
+  const fallback: GalleryItem[] = [
+    {
+      id: 1,
+      title: "2024 GR Corolla Circuit Edition",
+      subtitle: "Blue Ice – current daily and track toy.",
+      imageUrl: "/placeholder-car-1.jpg",
+      tags: ["gr corolla", "circuit edition", "2024"],
+    },
+    {
+      id: 2,
+      title: "2019 Civic Type R",
+      subtitle: "Black, turbo, and a very good time.",
+      imageUrl: "/placeholder-car-2.jpg",
+      tags: ["civic type r", "2019"],
+    },
+    {
+      id: 3,
+      title: "1993 Civic Hatchback",
+      subtitle: "Fully modified, white, and very loud.",
+      imageUrl: "/placeholder-car-3.jpg",
+      tags: ["civic", "hatchback", "1993"],
+    },
+  ];
 
-export default function CarsPage() {
+  const { data, error } = await supabase
+    .from("photos")
+    .select("id, title, description, image_path, tags, category, created_at")
+    .eq("category", "car")
+    .order("created_at", { ascending: false })
+    .limit(50);
+
+  if (error || !data || data.length === 0) return fallback;
+
+  return data.map((row) => ({
+    id: row.id,
+    title: row.title,
+    subtitle: row.description ?? "",
+    imageUrl: getMediaPublicUrl(row.image_path),
+    tags: (row.tags as string[]) ?? [],
+  }));
+}
+
+export default async function CarsPage() {
+  const items = await getCarPhotos();
+
   return (
     <div className="page-shell-wide">
       <header className="card">
@@ -56,7 +78,7 @@ export default function CarsPage() {
             A visual log of the cars I&apos;ve owned or cared about.
           </p>
         </div>
-        <GalleryGrid items={dummyCars} />
+        <GalleryGrid items={items} />
       </section>
     </div>
   );

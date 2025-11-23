@@ -1,42 +1,66 @@
 // src/app/discuss/page.tsx
 import { ThreadList, ThreadSummary } from "@/components/ThreadList";
+import { supabase } from "@/lib/supabase";
 
 export const metadata = {
   title: "Discuss | romanriv.com",
 };
 
-const allThreads: ThreadSummary[] = [
-  {
-    id: "1",
-    title: "What anime should I binge next weekend?",
-    category: "anime",
-    commentCount: 8,
-    createdAt: "Nov 2025",
-  },
-  {
-    id: "2",
-    title: "Most photogenic meals you’ve cooked recently",
-    category: "food",
-    commentCount: 5,
-    createdAt: "Oct 2025",
-  },
-  {
-    id: "3",
-    title: "Thoughts on the GR Corolla vs Civic Type R",
-    category: "cars",
-    commentCount: 12,
-    createdAt: "Sep 2025",
-  },
-  {
-    id: "4",
-    title: "Early thoughts on Kiori and similar tools",
-    category: "business",
-    commentCount: 3,
-    createdAt: "Sep 2025",
-  },
-];
+async function getAllThreads(): Promise<ThreadSummary[]> {
+  const fallback: ThreadSummary[] = [
+    {
+      id: "1",
+      title: "What anime should I binge next weekend?",
+      category: "anime",
+      commentCount: 8,
+      createdAt: "Nov 2025",
+    },
+    {
+      id: "2",
+      title: "Most photogenic meals you’ve cooked recently",
+      category: "food",
+      commentCount: 5,
+      createdAt: "Oct 2025",
+    },
+    {
+      id: "3",
+      title: "Thoughts on the GR Corolla vs Civic Type R",
+      category: "cars",
+      commentCount: 12,
+      createdAt: "Sep 2025",
+    },
+    {
+      id: "4",
+      title: "Early thoughts on Kiori and similar tools",
+      category: "business",
+      commentCount: 3,
+      createdAt: "Sep 2025",
+    },
+  ];
 
-export default function DiscussPage() {
+  const { data, error } = await supabase
+    .from("threads")
+    .select("id, title, category, comment_count, created_at")
+    .order("created_at", { ascending: false })
+    .limit(50);
+
+  if (error || !data || data.length === 0) return fallback;
+
+  return data.map((row) => ({
+    id: row.id as string,
+    title: row.title as string,
+    category: row.category as ThreadSummary["category"],
+    commentCount: (row.comment_count as number) ?? 0,
+    createdAt: new Date(row.created_at as string).toLocaleDateString("en-US", {
+      month: "short",
+      year: "numeric",
+    }),
+  }));
+}
+
+export default async function DiscussPage() {
+  const threads = await getAllThreads();
+
   return (
     <div className="page-shell">
       <header className="card">
@@ -55,13 +79,13 @@ export default function DiscussPage() {
           page.
         </p>
         <div className="mt-3 flex items-center justify-between text-xs text-slate-500">
-          <span>v1 is read-only mock data.</span>
+          <span>v1 is read-only mock data plus any real threads you add.</span>
           <span>Next step: Supabase + thread creation form.</span>
         </div>
       </header>
 
       <section>
-        <ThreadList threads={allThreads} />
+        <ThreadList threads={threads} />
       </section>
 
       <section className="card text-sm text-slate-400">

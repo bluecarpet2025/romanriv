@@ -1,10 +1,11 @@
 // src/app/page.tsx
 import { SectionCard } from "@/components/SectionCard";
-import { GalleryGrid } from "@/components/GalleryGrid";
-import { ThreadList } from "@/components/ThreadList";
+import { GalleryGrid, GalleryItem } from "@/components/GalleryGrid";
+import { ThreadList, ThreadSummary } from "@/components/ThreadList";
+import { supabase, getMediaPublicUrl } from "@/lib/supabase";
 
-export default function HomePage() {
-  const sampleFood = [
+async function getHomeFood(): Promise<GalleryItem[]> {
+  const fallback: GalleryItem[] = [
     {
       id: 1,
       title: "Miso Salmon & Broccoli",
@@ -28,7 +29,26 @@ export default function HomePage() {
     },
   ];
 
-  const sampleCar = [
+  const { data, error } = await supabase
+    .from("photos")
+    .select("id, title, description, image_path, tags, category, created_at")
+    .eq("category", "food")
+    .order("created_at", { ascending: false })
+    .limit(3);
+
+  if (error || !data || data.length === 0) return fallback;
+
+  return data.map((row) => ({
+    id: row.id,
+    title: row.title,
+    subtitle: row.description ?? "",
+    imageUrl: getMediaPublicUrl(row.image_path),
+    tags: (row.tags as string[]) ?? [],
+  }));
+}
+
+async function getHomeCars(): Promise<GalleryItem[]> {
+  const fallback: GalleryItem[] = [
     {
       id: 1,
       title: "2024 GR Corolla Circuit Edition",
@@ -38,29 +58,75 @@ export default function HomePage() {
     },
   ];
 
-  const sampleThreads = [
+  const { data, error } = await supabase
+    .from("photos")
+    .select("id, title, description, image_path, tags, category, created_at")
+    .eq("category", "car")
+    .order("created_at", { ascending: false })
+    .limit(3);
+
+  if (error || !data || data.length === 0) return fallback;
+
+  return data.map((row) => ({
+    id: row.id,
+    title: row.title,
+    subtitle: row.description ?? "",
+    imageUrl: getMediaPublicUrl(row.image_path),
+    tags: (row.tags as string[]) ?? [],
+  }));
+}
+
+async function getHomeThreads(): Promise<ThreadSummary[]> {
+  const fallback: ThreadSummary[] = [
     {
       id: "1",
       title: "What anime should I binge next weekend?",
-      category: "anime" as const,
+      category: "anime",
       commentCount: 8,
       createdAt: "Nov 2025",
     },
     {
       id: "2",
       title: "Most photogenic meals you’ve cooked recently",
-      category: "food" as const,
+      category: "food",
       commentCount: 5,
       createdAt: "Oct 2025",
     },
     {
       id: "3",
       title: "Thoughts on the GR Corolla vs Civic Type R",
-      category: "cars" as const,
+      category: "cars",
       commentCount: 12,
       createdAt: "Sep 2025",
     },
   ];
+
+  const { data, error } = await supabase
+    .from("threads")
+    .select("id, title, category, comment_count, created_at")
+    .order("created_at", { ascending: false })
+    .limit(5);
+
+  if (error || !data || data.length === 0) return fallback;
+
+  return data.map((row) => ({
+    id: row.id as string,
+    title: row.title as string,
+    category: row.category as ThreadSummary["category"],
+    commentCount: (row.comment_count as number) ?? 0,
+    createdAt: new Date(row.created_at as string).toLocaleDateString("en-US", {
+      month: "short",
+      year: "numeric",
+    }),
+  }));
+}
+
+export default async function HomePage() {
+  const [foodItems, carItems, threads] = await Promise.all([
+    getHomeFood(),
+    getHomeCars(),
+    getHomeThreads(),
+  ]);
 
   return (
     <div className="page-shell">
@@ -90,7 +156,7 @@ export default function HomePage() {
           badge="Gallery"
         >
           <div className="mt-3">
-            <GalleryGrid items={sampleFood} />
+            <GalleryGrid items={foodItems} />
           </div>
         </SectionCard>
 
@@ -101,7 +167,7 @@ export default function HomePage() {
           badge="Garage"
         >
           <div className="mt-3">
-            <GalleryGrid items={sampleCar} />
+            <GalleryGrid items={carItems} />
           </div>
         </SectionCard>
 
@@ -119,7 +185,7 @@ export default function HomePage() {
         </SectionCard>
       </section>
 
-      {/* Business + Recent discussions */}
+      {/* Projects + Recent discussions */}
       <section className="space-y-4">
         <SectionCard
           title="Projects"
@@ -138,7 +204,7 @@ export default function HomePage() {
 
         <ThreadList
           title="Recent discussions"
-          threads={sampleThreads}
+          threads={threads}
           showCategoryFilterHint
         />
       </section>
