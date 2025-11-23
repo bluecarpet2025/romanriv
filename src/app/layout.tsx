@@ -26,41 +26,59 @@ export default function RootLayout({
   return (
     <html lang="en" className="h-full">
       <body className="min-h-screen bg-slate-950 text-slate-100 antialiased">
+        {/* Full-page background */}
         <div className="flex min-h-screen flex-col">
-          {/* Top nav */}
-          <header className="sticky top-0 z-20 border-b border-slate-800 bg-slate-950/80 backdrop-blur">
-            <nav className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
-              <Link href="/" className="flex items-center gap-2">
-                <span className="h-8 w-8 rounded-full border border-slate-700 bg-slate-900 text-center text-sm font-semibold leading-8">
+          {/* Sticky top nav with centered content, like Kiori */}
+          <header className="sticky top-0 z-20 border-b border-slate-800 bg-slate-950/90 backdrop-blur">
+            <nav className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-4">
+              {/* Logo / title */}
+              <Link href="/" className="flex items-center gap-3">
+                <span className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-700 bg-slate-900 text-sm font-semibold">
                   RR
                 </span>
-                <span className="text-lg font-semibold tracking-tight">
-                  romanriv<span className="text-sky-400">.com</span>
-                </span>
+                <div className="flex flex-col leading-tight">
+                  <span className="text-lg font-semibold tracking-tight">
+                    romanriv<span className="text-sky-400">.com</span>
+                  </span>
+                  <span className="text-[11px] text-slate-400">
+                    Food • Cars • Anime • Projects
+                  </span>
+                </div>
               </Link>
-              <ul className="flex items-center gap-4 text-sm font-medium">
+
+              {/* Tabs */}
+              <ul className="hidden items-center gap-7 text-sm font-medium text-slate-200 md:flex">
                 {navItems.map((item) => (
                   <li key={item.href}>
                     <Link
                       href={item.href}
-                      className="rounded-full px-3 py-1 text-slate-300 transition hover:bg-slate-800 hover:text-slate-50"
+                      className="rounded-full px-3 py-1.5 text-slate-300 transition hover:bg-slate-800 hover:text-slate-50"
                     >
                       {item.label}
                     </Link>
                   </li>
                 ))}
               </ul>
+
+              {/* Simple fallback for very small screens */}
+              <div className="flex items-center gap-2 md:hidden">
+                <span className="text-xs text-slate-400">
+                  Menu: Home • Food • Cars • Anime • Business • Discuss
+                </span>
+              </div>
             </nav>
           </header>
 
-          {/* Main content */}
+          {/* Centered content container */}
           <main className="flex-1">
-            <div className="mx-auto max-w-5xl px-4 py-8">{children}</div>
+            <div className="mx-auto w-full max-w-6xl px-6 py-10">
+              {children}
+            </div>
           </main>
 
-          {/* Footer */}
-          <footer className="border-t border-slate-800 bg-slate-950/80">
-            <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4 text-xs text-slate-500">
+          {/* Footer, also centered like Kiori */}
+          <footer className="border-t border-slate-800 bg-slate-950/90">
+            <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-4 text-xs text-slate-500">
               <span>© {new Date().getFullYear()} Roman Rivera</span>
               <span className="text-slate-600">
                 Built with Next.js • Personal playground

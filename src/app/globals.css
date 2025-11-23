@@ -1,36 +1,53 @@
-/* app/globals.css */
+/* src/app/globals.css (or app/globals.css) */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-@layer base {
-  :root {
-    color-scheme: dark;
-  }
+/* Basic dark theme globals without @apply */
 
-  body {
-    @apply bg-slate-950 text-slate-100;
-  }
-
-  a {
-    @apply text-sky-400;
-  }
-
-  a:hover {
-    @apply text-sky-300;
-  }
+:root {
+  color-scheme: dark;
 }
 
-@layer components {
-  .card {
-    @apply rounded-2xl border border-slate-800 bg-slate-900/60 p-4 shadow-sm;
-  }
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+  background-color: #020617; /* roughly bg-slate-950 */
+  color: #e5e7eb; /* roughly text-slate-200 */
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+}
 
-  .section-title {
-    @apply text-lg font-semibold tracking-tight text-slate-50;
-  }
+/* Links */
+a {
+  color: #38bdf8; /* sky-400 */
+  text-decoration: none;
+}
 
-  .section-subtitle {
-    @apply text-sm text-slate-400;
-  }
+a:hover {
+  color: #7dd3fc; /* sky-300-ish */
+}
+
+/* Card utility (used by components) */
+.card {
+  border-radius: 1rem; /* rounded-2xl */
+  border: 1px solid #1e293b; /* border-slate-800 */
+  background-color: rgba(15, 23, 42, 0.6); /* bg-slate-900/60 */
+  padding: 1rem;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.7);
+}
+
+/* Section title + subtitle */
+.section-title {
+  font-size: 1.125rem; /* text-lg */
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: #f9fafb; /* text-slate-50 */
+}
+
+.section-subtitle {
+  font-size: 0.875rem; /* text-sm */
+  color: #9ca3af; /* text-slate-400 */
 }
