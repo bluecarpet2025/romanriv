@@ -31,7 +31,7 @@ const dummyCars: GalleryItem[] = [
 
 export default function CarsPage() {
   return (
-    <div className="flex flex-col gap-10">
+    <div className="mx-auto w-full max-w-4xl space-y-10">
       <header className="card">
         <h1 className="text-xl font-bold tracking-tight text-slate-50">
           Cars
@@ -49,7 +49,7 @@ export default function CarsPage() {
         </p>
       </header>
 
-      <section className="flex flex-col gap-4">
+      <section className="space-y-4">
         <div className="flex items-baseline justify-between">
           <h2 className="section-title">Garage</h2>
           <p className="section-subtitle">

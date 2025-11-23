@@ -24,7 +24,7 @@ const sampleAnimeThreads = [
 
 export default function AnimePage() {
   return (
-    <div className="flex flex-col gap-10">
+    <div className="mx-auto w-full max-w-3xl space-y-10">
       <header className="card">
         <h1 className="text-xl font-bold tracking-tight text-slate-50">
           Anime

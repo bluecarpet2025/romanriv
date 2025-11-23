@@ -4,7 +4,6 @@ import { GalleryGrid } from "@/components/GalleryGrid";
 import { ThreadList } from "@/components/ThreadList";
 
 export default function HomePage() {
-  // Temporary dummy samples
   const sampleFood = [
     {
       id: 1,
@@ -64,7 +63,7 @@ export default function HomePage() {
   ];
 
   return (
-    <div className="flex flex-col gap-12">
+    <div className="mx-auto w-full max-w-3xl space-y-10">
       {/* Intro */}
       <section className="card">
         <h1 className="text-2xl font-bold tracking-tight text-slate-50">
@@ -82,8 +81,8 @@ export default function HomePage() {
         </p>
       </section>
 
-      {/* Grid: Food + Cars + Anime overview */}
-      <section className="grid gap-4 md:grid-cols-3">
+      {/* Food + Cars + Anime */}
+      <section className="space-y-4">
         <SectionCard
           title="Food"
           description="Collage of the meals I cook and plate – mostly post-gym and weekend experiments."
@@ -121,7 +120,7 @@ export default function HomePage() {
       </section>
 
       {/* Business + Discuss */}
-      <section className="grid gap-4 md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
+      <section className="space-y-4">
         <SectionCard
           title="Business"
           description="Notes and updates on Kiori Solutions, KDP experiments, and other side projects."

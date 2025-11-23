@@ -1,90 +1,79 @@
-// src/app/discuss/page.tsx
-import { ThreadList, ThreadSummary } from "@/components/ThreadList";
+// src/app/business/page.tsx
+import Link from "next/link";
+import { ThreadList } from "@/components/ThreadList";
 
 export const metadata = {
-  title: "Discuss | romanriv.com",
+  title: "Business | romanriv.com",
 };
 
-const allThreads: ThreadSummary[] = [
+const businessThreads = [
   {
-    id: "1",
-    title: "What anime should I binge next weekend?",
-    category: "anime",
-    commentCount: 8,
-    createdAt: "Nov 2025",
-  },
-  {
-    id: "2",
-    title: "Most photogenic meals you’ve cooked recently",
-    category: "food",
-    commentCount: 5,
-    createdAt: "Oct 2025",
-  },
-  {
-    id: "3",
-    title: "Thoughts on the GR Corolla vs Civic Type R",
-    category: "cars",
-    commentCount: 12,
-    createdAt: "Sep 2025",
-  },
-  {
-    id: "4",
-    title: "Early thoughts on Kiori and similar tools",
-    category: "business",
+    id: "biz-1",
+    title: "Early thoughts on Kiori Solutions",
+    category: "business" as const,
     commentCount: 3,
     createdAt: "Sep 2025",
   },
 ];
 
-export default function DiscussPage() {
+export default function BusinessPage() {
   return (
-    <div className="flex flex-col gap-10">
+    <div className="mx-auto w-full max-w-3xl space-y-10">
       <header className="card">
         <h1 className="text-xl font-bold tracking-tight text-slate-50">
-          Discuss
+          Business
         </h1>
         <p className="mt-3 text-sm text-slate-300">
-          Instead of comments under every photo or anime entry, conversations
-          live here in one place. Anyone can start a thread with a title and a
-          post, and others can reply under it.
+          This is where I keep a public log of the projects I&apos;m building in
+          the background:{" "}
+          <span className="font-semibold text-sky-300">Kiori Solutions</span>{" "}
+          for food businesses, my KDP experiments, and whatever else I’m
+          currently obsessed with.
         </p>
-        <p className="mt-2 text-sm text-slate-400">
-          Threads are grouped by category: anime, food, cars, business, or
-          general. Later, these will come from Supabase instead of static data,
-          and you&apos;ll be able to create new threads directly from this
-          page.
-        </p>
-        <div className="mt-3 flex items-center justify-between text-xs text-slate-500">
-          <span>v1 is read-only mock data.</span>
-          <span>Next step: Supabase + thread creation form.</span>
-        </div>
       </header>
 
-      <section>
-        <ThreadList threads={allThreads} />
+      <section className="grid gap-4 md:grid-cols-2">
+        <div className="card">
+          <h2 className="section-title">Kiori Solutions</h2>
+          <p className="mt-3 text-sm text-slate-300">
+            Kiori is a tool I&apos;m building for food entrepreneurs:
+            restaurants, food trucks, coffee shops, and anyone trying to keep
+            costs and recipes under control without drowning in spreadsheets.
+          </p>
+          <ul className="mt-3 space-y-2 text-sm text-slate-300">
+            <li>• Recipe and inventory tracking.</li>
+            <li>• Costing and margin clarity per dish.</li>
+            <li>• A clearer view of whether the numbers make sense.</li>
+          </ul>
+          <p className="mt-3 text-sm text-slate-400">
+            It&apos;s still in active development, but if you&apos;re curious:
+          </p>
+          <Link
+            href="https://kiorisolutions.com"
+            target="_blank"
+            rel="noreferrer"
+            className="mt-2 inline-flex text-sm font-medium text-sky-400 hover:text-sky-300"
+          >
+            Visit kiorisolutions.com &rarr;
+          </Link>
+        </div>
+
+        <div className="card">
+          <h2 className="section-title">KDP & other experiments</h2>
+          <p className="mt-3 text-sm text-slate-300">
+            I also publish notebooks, journals, and other low/medium-content
+            books through KDP. It&apos;s a mix of faith-based journals, simple
+            planners, and experiments with more structured content.
+          </p>
+          <p className="mt-3 text-sm text-slate-400">
+            Over time, I&apos;ll add links and notes here about what works, what
+            doesn&apos;t, and what I&apos;m trying next.
+          </p>
+        </div>
       </section>
 
-      <section className="card text-sm text-slate-400">
-        <p>
-          In the real version, this section will be a simple form to start a new
-          thread:
-        </p>
-        <ul className="mt-2 list-disc space-y-1 pl-5">
-          <li>Choose a category (anime, food, cars, business, general).</li>
-          <li>Give it a title.</li>
-          <li>Write your post and submit.</li>
-        </ul>
-        <p className="mt-2">
-          For now, this is just a placeholder note so we remember what we&apos;re
-          building toward.
-        </p>
-        <p className="mt-2">
-          You&apos;ll also see thread-specific pages at URLs like{" "}
-          <code className="rounded bg-slate-900 px-2 py-1 text-xs">
-            /discuss/&lt;thread-id&gt;
-          </code>{" "}
-          once we add dynamic routes.
-        </p>
+      <section>
+        <ThreadList title="Business discussions" threads={businessThreads} />
       </section>
     </div>
   );
