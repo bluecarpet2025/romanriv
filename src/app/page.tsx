@@ -1,65 +1,148 @@
-import Image from "next/image";
+// app/page.tsx
+import { SectionCard } from "@/components/SectionCard";
+import { GalleryGrid } from "@/components/GalleryGrid";
+import { ThreadList } from "@/components/ThreadList";
 
-export default function Home() {
+export default function HomePage() {
+  // Temporary dummy samples
+  const sampleFood = [
+    {
+      id: 1,
+      title: "Miso Salmon & Broccoli",
+      subtitle: "Gym-day dinner, high protein, low effort.",
+      imageUrl: "/placeholder-food-1.jpg",
+      tags: ["salmon", "broccoli", "dinner"],
+    },
+    {
+      id: 2,
+      title: "Steak & Potatoes",
+      subtitle: "Weeknight experiment with a new pan.",
+      imageUrl: "/placeholder-food-2.jpg",
+      tags: ["steak", "comfort"],
+    },
+    {
+      id: 3,
+      title: "Shrimp & Rice Bowl",
+      subtitle: "Sunday meal prep, camera loved it.",
+      imageUrl: "/placeholder-food-3.jpg",
+      tags: ["shrimp", "meal prep"],
+    },
+  ];
+
+  const sampleCar = [
+    {
+      id: 1,
+      title: "2024 GR Corolla Circuit Edition",
+      subtitle: "Blue Ice. The current daily and track-day dream.",
+      imageUrl: "/placeholder-car-1.jpg",
+      tags: ["gr corolla", "blue ice", "2024"],
+    },
+  ];
+
+  const sampleThreads = [
+    {
+      id: "1",
+      title: "What anime should I binge next weekend?",
+      category: "anime" as const,
+      commentCount: 8,
+      createdAt: "Nov 2025",
+    },
+    {
+      id: "2",
+      title: "Most photogenic meals you’ve cooked recently",
+      category: "food" as const,
+      commentCount: 5,
+      createdAt: "Oct 2025",
+    },
+    {
+      id: "3",
+      title: "Thoughts on the GR Corolla vs Civic Type R",
+      category: "cars" as const,
+      commentCount: 12,
+      createdAt: "Sep 2025",
+    },
+  ];
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <div className="flex flex-col gap-8">
+      {/* Intro */}
+      <section className="card">
+        <h1 className="text-2xl font-bold tracking-tight text-slate-50">
+          Hi, I&apos;m Roman.
+        </h1>
+        <p className="mt-3 text-sm text-slate-300">
+          This site is my personal playground. It collects the things I care
+          about and spend time on: the food I cook, the cars I drive, the anime
+          I watch, and the businesses I&apos;m building in the background.
+        </p>
+        <p className="mt-3 text-sm text-slate-400">
+          Think of it as a living notebook: part photo gallery, part anime log,
+          part dev log for projects like{" "}
+          <span className="font-semibold text-sky-300">Kiori Solutions</span>.
+        </p>
+      </section>
+
+      {/* Grid: Food + Cars */}
+      <section className="grid gap-4 md:grid-cols-3">
+        <SectionCard
+          title="Food"
+          description="Collage of the meals I cook and plate – mostly post-gym and weekend experiments."
+          href="/food"
+          badge="Gallery"
+        >
+          <div className="mt-3">
+            <GalleryGrid items={sampleFood} />
+          </div>
+        </SectionCard>
+
+        <SectionCard
+          title="Cars"
+          description="My current GR Corolla and a timeline of the cars that came before it."
+          href="/cars"
+          badge="Garage"
+        >
+          <div className="mt-3">
+            <GalleryGrid items={sampleCar} />
+          </div>
+        </SectionCard>
+
+        <SectionCard
+          title="Anime"
+          description="Watchlists, long-form shows, and the series I come back to over and over."
+          href="/anime"
+          badge="Lists"
+        >
+          <ul className="mt-3 space-y-2 text-sm text-slate-300">
+            <li>• Currently watching & seasonal shows.</li>
+            <li>• Completed list & rewatch candidates.</li>
+            <li>• Special lists for long shounen and comfy shows.</li>
+          </ul>
+        </SectionCard>
+      </section>
+
+      {/* Business + Discuss */}
+      <section className="grid gap-4 md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
+        <SectionCard
+          title="Business"
+          description="Notes and updates on Kiori Solutions, KDP experiments, and other side projects."
+          href="/business"
+          badge="Work in progress"
+        >
+          <ul className="mt-3 space-y-2 text-sm text-slate-300">
+            <li>• Kiori: inventory, costing, and clarity for food businesses.</li>
+            <li>• KDP: journals, planners, and faith-based content.</li>
+            <li>
+              • Automations: n8n, Pinterest workflows, and other experiments.
+            </li>
+          </ul>
+        </SectionCard>
+
+        <ThreadList
+          title="Recent discussions"
+          threads={sampleThreads}
+          showCategoryFilterHint
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+      </section>
     </div>
   );
 }
