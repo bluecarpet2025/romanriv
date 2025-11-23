@@ -1,5 +1,4 @@
-// app/discuss/page.tsx
-import Link from "next/link";
+// src/app/discuss/page.tsx
 import { ThreadList, ThreadSummary } from "@/components/ThreadList";
 
 export const metadata = {
@@ -39,7 +38,7 @@ const allThreads: ThreadSummary[] = [
 
 export default function DiscussPage() {
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-10">
       <header className="card">
         <h1 className="text-xl font-bold tracking-tight text-slate-50">
           Discuss
@@ -61,7 +60,6 @@ export default function DiscussPage() {
         </div>
       </header>
 
-      {/* For now reuse ThreadList with all threads */}
       <section>
         <ThreadList threads={allThreads} />
       </section>

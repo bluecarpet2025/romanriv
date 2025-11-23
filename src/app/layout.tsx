@@ -1,4 +1,4 @@
-// app/layout.tsx
+// src/app/layout.tsx
 import type { Metadata } from "next";
 import "./globals.css";
 import Link from "next/link";
@@ -26,9 +26,8 @@ export default function RootLayout({
   return (
     <html lang="en" className="h-full">
       <body className="min-h-screen bg-slate-950 text-slate-100 antialiased">
-        {/* Full-page background */}
         <div className="flex min-h-screen flex-col">
-          {/* Sticky top nav with centered content, like Kiori */}
+          {/* Sticky top nav, centered like Kiori */}
           <header className="sticky top-0 z-20 border-b border-slate-800 bg-slate-950/90 backdrop-blur">
             <nav className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-4">
               {/* Logo / title */}
@@ -46,7 +45,7 @@ export default function RootLayout({
                 </div>
               </Link>
 
-              {/* Tabs */}
+              {/* Tabs for desktop */}
               <ul className="hidden items-center gap-7 text-sm font-medium text-slate-200 md:flex">
                 {navItems.map((item) => (
                   <li key={item.href}>
@@ -60,10 +59,10 @@ export default function RootLayout({
                 ))}
               </ul>
 
-              {/* Simple fallback for very small screens */}
+              {/* Simple text hint on very small screens (we'll improve later if needed) */}
               <div className="flex items-center gap-2 md:hidden">
                 <span className="text-xs text-slate-400">
-                  Menu: Home • Food • Cars • Anime • Business • Discuss
+                  Home • Food • Cars • Anime • Business • Discuss
                 </span>
               </div>
             </nav>
@@ -76,7 +75,7 @@ export default function RootLayout({
             </div>
           </main>
 
-          {/* Footer, also centered like Kiori */}
+          {/* Footer */}
           <footer className="border-t border-slate-800 bg-slate-950/90">
             <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-4 text-xs text-slate-500">
               <span>© {new Date().getFullYear()} Roman Rivera</span>

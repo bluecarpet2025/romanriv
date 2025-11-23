@@ -1,4 +1,4 @@
-// app/page.tsx
+// src/app/page.tsx
 import { SectionCard } from "@/components/SectionCard";
 import { GalleryGrid } from "@/components/GalleryGrid";
 import { ThreadList } from "@/components/ThreadList";
@@ -64,7 +64,7 @@ export default function HomePage() {
   ];
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-12">
       {/* Intro */}
       <section className="card">
         <h1 className="text-2xl font-bold tracking-tight text-slate-50">
@@ -82,7 +82,7 @@ export default function HomePage() {
         </p>
       </section>
 
-      {/* Grid: Food + Cars */}
+      {/* Grid: Food + Cars + Anime overview */}
       <section className="grid gap-4 md:grid-cols-3">
         <SectionCard
           title="Food"

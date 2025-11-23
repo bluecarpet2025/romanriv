@@ -1,4 +1,4 @@
-// components/SectionCard.tsx
+// src/components/SectionCard.tsx
 import Link from "next/link";
 import { ReactNode } from "react";
 

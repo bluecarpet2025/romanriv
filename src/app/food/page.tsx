@@ -1,4 +1,4 @@
-// app/food/page.tsx
+// src/app/food/page.tsx
 import { GalleryGrid, GalleryItem } from "@/components/GalleryGrid";
 
 export const metadata = {
@@ -31,7 +31,7 @@ const dummyFood: GalleryItem[] = [
 
 export default function FoodPage() {
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-10">
       <header className="card">
         <h1 className="text-xl font-bold tracking-tight text-slate-50">
           Food

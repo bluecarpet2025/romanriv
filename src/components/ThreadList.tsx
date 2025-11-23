@@ -1,4 +1,4 @@
-// components/ThreadList.tsx
+// src/components/ThreadList.tsx
 import Link from "next/link";
 
 export interface ThreadSummary {
@@ -32,9 +32,7 @@ export function ThreadList({
     <div className="card flex flex-col gap-3">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h2 className="section-title">
-            {title ?? "Latest discussions"}
-          </h2>
+          <h2 className="section-title">{title ?? "Latest discussions"}</h2>
           {showCategoryFilterHint && (
             <p className="mt-1 section-subtitle">
               Threads are grouped by category: Anime, Food, Cars, Business, or

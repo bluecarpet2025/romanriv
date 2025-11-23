@@ -1,4 +1,4 @@
-// app/anime/page.tsx
+// src/app/anime/page.tsx
 import { ThreadList } from "@/components/ThreadList";
 
 export const metadata = {
@@ -24,7 +24,7 @@ const sampleAnimeThreads = [
 
 export default function AnimePage() {
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-10">
       <header className="card">
         <h1 className="text-xl font-bold tracking-tight text-slate-50">
           Anime
@@ -70,10 +70,7 @@ export default function AnimePage() {
       </section>
 
       <section>
-        <ThreadList
-          title="Anime discussions"
-          threads={sampleAnimeThreads}
-        />
+        <ThreadList title="Anime discussions" threads={sampleAnimeThreads} />
       </section>
     </div>
   );

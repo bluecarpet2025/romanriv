@@ -1,4 +1,4 @@
-// components/GalleryGrid.tsx
+// src/components/GalleryGrid.tsx
 import Image from "next/image";
 
 export interface GalleryItem {
@@ -22,11 +22,13 @@ export function GalleryGrid({ items }: GalleryGridProps) {
           className="card flex flex-col gap-2 overflow-hidden p-0"
         >
           <div className="relative h-40 w-full">
-            {/* TODO: later replace with real image URLs from Supabase */}
             <Image
               src={item.imageUrl}
               alt={item.title ?? "Gallery item"}
               fill
+              sizes="(max-width: 768px) 100vw,
+                     (max-width: 1200px) 50vw,
+                     33vw"
               className="object-cover"
             />
           </div>
