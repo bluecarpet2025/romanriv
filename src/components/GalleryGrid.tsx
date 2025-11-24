@@ -1,60 +1,68 @@
 // src/components/GalleryGrid.tsx
-import Image from "next/image";
+"use client";
 
-export interface GalleryItem {
-  id: string | number;
-  title?: string;
-  subtitle?: string;
-  imageUrl: string;
+export type GalleryItem = {
+  id: number | string;
+  title: string;
+  subtitle?: string | null;
+  imageUrl?: string;
   tags?: string[];
-}
+};
 
-interface GalleryGridProps {
+type GalleryGridProps = {
   items: GalleryItem[];
-}
+};
 
 export function GalleryGrid({ items }: GalleryGridProps) {
+  if (!items || items.length === 0) {
+    return (
+      <div className="card">
+        <p className="text-sm text-slate-300">
+          No photos yet. Once you upload some, they&apos;ll show up here.
+        </p>
+      </div>
+    );
+  }
+
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
       {items.map((item) => (
-        <div
+        <article
           key={item.id}
-          className="card flex flex-col gap-2 overflow-hidden p-0"
+          className="card overflow-hidden p-0"
         >
-          <div className="relative h-40 w-full">
-            <Image
-              src={item.imageUrl}
-              alt={item.title ?? "Gallery item"}
-              fill
-              sizes="(max-width: 768px) 100vw,
-                     (max-width: 1200px) 50vw,
-                     33vw"
-              className="object-cover"
-            />
-          </div>
-          <div className="px-4 pb-4 pt-3">
-            {item.title && (
-              <h3 className="text-sm font-semibold text-slate-100">
-                {item.title}
-              </h3>
-            )}
+          {/* Thumbnail */}
+          {item.imageUrl && (
+            <div className="aspect-[4/3] w-full overflow-hidden bg-slate-900/80">
+              {/* Using plain img to avoid Next Image config headaches */}
+              <img
+                src={item.imageUrl}
+                alt={item.title}
+                className="h-full w-full object-cover"
+                loading="lazy"
+              />
+            </div>
+          )}
+
+          {/* Text content */}
+          <div className="px-4 py-3">
+            <h3 className="truncate text-sm font-semibold tracking-tight text-slate-100 sm:text-base">
+              {item.title}
+            </h3>
+
             {item.subtitle && (
-              <p className="mt-1 text-xs text-slate-400">{item.subtitle}</p>
+              <p className="mt-1 line-clamp-2 text-xs text-slate-300 sm:text-sm">
+                {item.subtitle}
+              </p>
             )}
+
             {item.tags && item.tags.length > 0 && (
-              <div className="mt-2 flex flex-wrap gap-1">
-                {item.tags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="rounded-full bg-slate-800 px-2 py-0.5 text-[10px] uppercase tracking-wide text-slate-400"
-                  >
-                    {tag}
-                  </span>
-                ))}
-              </div>
+              <p className="mt-2 text-[0.7rem] font-medium uppercase tracking-wide text-slate-400">
+                {item.tags.join(" • ")}
+              </p>
             )}
           </div>
-        </div>
+        </article>
       ))}
     </div>
   );
