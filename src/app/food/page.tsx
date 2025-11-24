@@ -6,19 +6,6 @@ export const metadata = {
   title: "Food | romanriv.com",
 };
 
-// force this page to run on each request (no static build cache)
-export const dynamic = "force-dynamic";
-
-type PhotoRow = {
-  id: string;
-  title: string | null;
-  description: string | null;
-  image_path: string | null;
-  tags: string[] | null;
-  category: string | null;
-  created_at: string | null;
-};
-
 async function getFoodPhotos(): Promise<GalleryItem[]> {
   const fallback: GalleryItem[] = [
     {
@@ -27,6 +14,8 @@ async function getFoodPhotos(): Promise<GalleryItem[]> {
       subtitle: "Saturday post-gym dinner, simple and clean.",
       imageUrl: "/placeholder-food-1.jpg",
       tags: ["salmon", "broccoli", "dinner"],
+      likes: 0,
+      views: 0,
     },
     {
       id: 2,
@@ -34,6 +23,8 @@ async function getFoodPhotos(): Promise<GalleryItem[]> {
       subtitle: "Learning the line between seared and burned.",
       imageUrl: "/placeholder-food-2.jpg",
       tags: ["steak", "comfort", "weeknight"],
+      likes: 0,
+      views: 0,
     },
     {
       id: 3,
@@ -41,32 +32,30 @@ async function getFoodPhotos(): Promise<GalleryItem[]> {
       subtitle: "Shrimp, rice, and greens – camera favorite.",
       imageUrl: "/placeholder-food-3.jpg",
       tags: ["shrimp", "bowl", "meal prep"],
+      likes: 0,
+      views: 0,
     },
   ];
 
   const { data, error } = await supabase
     .from("photos")
-    .select("id, title, description, image_path, tags, category, created_at")
+    .select(
+      "id, title, description, image_path, tags, category, created_at, likes, views"
+    )
     .eq("category", "food")
     .order("created_at", { ascending: false })
     .limit(50);
 
-  console.log("[getFoodPhotos] error:", error);
-  console.log("[getFoodPhotos] rows:", data?.length);
-  if (data && data.length) {
-    console.log("[getFoodPhotos] first row:", data[0]);
-  }
+  if (error || !data || data.length === 0) return fallback;
 
-  if (error || !data || data.length === 0) {
-    return fallback;
-  }
-
-  return (data as PhotoRow[]).map((row) => ({
+  return data.map((row: any) => ({
     id: row.id,
-    title: row.title ?? "(untitled)",
+    title: row.title,
     subtitle: row.description ?? "",
-    imageUrl: getMediaPublicUrl(row.image_path ?? ""),
-    tags: row.tags ?? [],
+    imageUrl: getMediaPublicUrl(row.image_path),
+    tags: (row.tags as string[]) ?? [],
+    likes: row.likes ?? 0,
+    views: row.views ?? 0,
   }));
 }
 
@@ -82,8 +71,8 @@ export default async function FoodPage() {
         <p className="mt-3 text-sm text-slate-300">
           For the last few years, every time I cook something and the plate
           looks good, I take a picture. This page is a collage of those meals:
-          post-gym dinners, weekend experiments, and whatever looked good
-          enough to grab the camera.
+          post-gym dinners, weekend experiments, and whatever looked good enough
+          to grab the camera.
         </p>
         <p className="mt-2 text-sm text-slate-400">
           In the future, each dish will come from a real database entry with
@@ -97,7 +86,8 @@ export default async function FoodPage() {
         <div className="flex items-baseline justify-between">
           <h2 className="section-title">Recent dishes</h2>
           <p className="section-subtitle">
-            Tags and likes per picture, comments in the global discussion.
+            Tags, likes, and views per picture. Comments live in the global
+            discussion.
           </p>
         </div>
 

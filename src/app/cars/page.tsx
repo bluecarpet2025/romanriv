@@ -14,6 +14,8 @@ async function getCarPhotos(): Promise<GalleryItem[]> {
       subtitle: "Blue Ice – current daily and track toy.",
       imageUrl: "/placeholder-car-1.jpg",
       tags: ["gr corolla", "circuit edition", "2024"],
+      likes: 0,
+      views: 0,
     },
     {
       id: 2,
@@ -21,6 +23,8 @@ async function getCarPhotos(): Promise<GalleryItem[]> {
       subtitle: "Black, turbo, and a very good time.",
       imageUrl: "/placeholder-car-2.jpg",
       tags: ["civic type r", "2019"],
+      likes: 0,
+      views: 0,
     },
     {
       id: 3,
@@ -28,24 +32,30 @@ async function getCarPhotos(): Promise<GalleryItem[]> {
       subtitle: "Fully modified, white, and very loud.",
       imageUrl: "/placeholder-car-3.jpg",
       tags: ["civic", "hatchback", "1993"],
+      likes: 0,
+      views: 0,
     },
   ];
 
   const { data, error } = await supabase
     .from("photos")
-    .select("id, title, description, image_path, tags, category, created_at")
+    .select(
+      "id, title, description, image_path, tags, category, created_at, likes, views"
+    )
     .eq("category", "car")
     .order("created_at", { ascending: false })
     .limit(50);
 
   if (error || !data || data.length === 0) return fallback;
 
-  return data.map((row) => ({
+  return data.map((row: any) => ({
     id: row.id,
     title: row.title,
     subtitle: row.description ?? "",
     imageUrl: getMediaPublicUrl(row.image_path),
     tags: (row.tags as string[]) ?? [],
+    likes: row.likes ?? 0,
+    views: row.views ?? 0,
   }));
 }
 
@@ -65,9 +75,9 @@ export default async function CarsPage() {
           modified.
         </p>
         <p className="mt-2 text-sm text-slate-400">
-          Same rules as the food page: each picture gets tags and likes. If you
-          want to talk about any of them, the discussion lives in the global
-          threads, not under each photo.
+          Same rules as the food page: each picture gets tags, likes, and views.
+          If you want to talk about any of them, the discussion lives in the
+          global threads, not under each photo.
         </p>
       </header>
 
@@ -78,6 +88,7 @@ export default async function CarsPage() {
             A visual log of the cars I&apos;ve owned or cared about.
           </p>
         </div>
+
         <GalleryGrid items={items} />
       </section>
     </div>

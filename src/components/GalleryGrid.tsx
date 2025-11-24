@@ -1,12 +1,16 @@
 // src/components/GalleryGrid.tsx
 "use client";
 
+import React from "react";
+
 export type GalleryItem = {
-  id: number | string;
+  id: string | number;
   title: string;
   subtitle?: string | null;
-  imageUrl?: string;
+  imageUrl?: string | null;
   tags?: string[];
+  likes?: number | null;
+  views?: number | null;
 };
 
 type GalleryGridProps = {
@@ -16,51 +20,60 @@ type GalleryGridProps = {
 export function GalleryGrid({ items }: GalleryGridProps) {
   if (!items || items.length === 0) {
     return (
-      <div className="card">
-        <p className="text-sm text-slate-300">
-          No photos yet. Once you upload some, they&apos;ll show up here.
-        </p>
-      </div>
+      <p className="text-sm text-slate-400">
+        No photos yet. Use the admin uploader to add some.
+      </p>
     );
   }
 
   return (
-    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+    <div className="space-y-4">
       {items.map((item) => (
         <article
           key={item.id}
-          className="card overflow-hidden p-0"
+          className="card flex flex-col gap-3 sm:flex-row sm:items-stretch"
         >
-          {/* Thumbnail */}
           {item.imageUrl && (
-            <div className="aspect-[4/3] w-full overflow-hidden bg-slate-900/80">
-              {/* Using plain img to avoid Next Image config headaches */}
-              <img
-                src={item.imageUrl}
-                alt={item.title}
-                className="h-full w-full object-cover"
-                loading="lazy"
-              />
+            <div className="sm:w-1/3">
+              <div className="relative overflow-hidden rounded-lg bg-slate-900/60">
+                {/* Plain <img> so we don't depend on next/image host config */}
+                <img
+                  src={item.imageUrl}
+                  alt={item.title}
+                  loading="lazy"
+                  className="block h-48 w-full object-cover sm:h-full"
+                />
+              </div>
             </div>
           )}
 
-          {/* Text content */}
-          <div className="px-4 py-3">
-            <h3 className="truncate text-sm font-semibold tracking-tight text-slate-100 sm:text-base">
-              {item.title}
-            </h3>
+          <div className="flex flex-1 flex-col justify-between gap-2">
+            <div>
+              <h3 className="text-sm font-semibold text-slate-50">
+                {item.title}
+              </h3>
+              {item.subtitle && (
+                <p className="mt-1 text-xs text-slate-300">
+                  {item.subtitle}
+                </p>
+              )}
+              {item.tags && item.tags.length > 0 && (
+                <p className="mt-2 text-[11px] uppercase tracking-wide text-slate-400">
+                  {item.tags.join(" • ")}
+                </p>
+              )}
+            </div>
 
-            {item.subtitle && (
-              <p className="mt-1 line-clamp-2 text-xs text-slate-300 sm:text-sm">
-                {item.subtitle}
-              </p>
-            )}
-
-            {item.tags && item.tags.length > 0 && (
-              <p className="mt-2 text-[0.7rem] font-medium uppercase tracking-wide text-slate-400">
-                {item.tags.join(" • ")}
-              </p>
-            )}
+            <div className="mt-2 flex items-center justify-end gap-3 text-[11px] text-slate-400">
+              <span className="inline-flex items-center gap-1">
+                <span aria-hidden="true">♡</span>
+                {item.likes ?? 0}
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <span aria-hidden="true">👁</span>
+                {item.views ?? 0}
+              </span>
+            </div>
           </div>
         </article>
       ))}
