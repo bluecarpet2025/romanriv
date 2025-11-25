@@ -1,13 +1,11 @@
 // src/components/GalleryGrid.tsx
-"use client";
-
-import React from "react";
+import Image from "next/image";
 
 export type GalleryItem = {
-  id: string | number;
+  id: number | string;
   title: string;
   subtitle?: string | null;
-  imageUrl?: string | null;
+  imageUrl: string;
   tags?: string[];
   likes?: number | null;
   views?: number | null;
@@ -20,58 +18,60 @@ type GalleryGridProps = {
 export function GalleryGrid({ items }: GalleryGridProps) {
   if (!items || items.length === 0) {
     return (
-      <p className="text-sm text-slate-400">
-        No photos yet. Use the admin uploader to add some.
+      <p className="mt-4 text-sm text-slate-400">
+        No items yet. Once you upload photos, they’ll show up here.
       </p>
     );
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {items.map((item) => (
         <article
           key={item.id}
-          className="card flex flex-col gap-3 sm:flex-row sm:items-stretch"
+          className="card overflow-hidden"
         >
-          {item.imageUrl && (
-            <div className="sm:w-1/3">
-              <div className="relative overflow-hidden rounded-lg bg-slate-900/60">
-                {/* Plain <img> so we don't depend on next/image host config */}
-                <img
-                  src={item.imageUrl}
-                  alt={item.title}
-                  loading="lazy"
-                  className="block h-48 w-full object-cover sm:h-full"
-                />
-              </div>
-            </div>
-          )}
+          {/* Image wrapper – keeps the card shape, but lets the whole photo be visible */}
+          <div className="rounded-md bg-slate-950/80 overflow-hidden flex items-center justify-center">
+            <Image
+              src={item.imageUrl}
+              alt={item.title}
+              width={1600}
+              height={1200}
+              className="w-full h-auto object-contain"
+              priority={false}
+            />
+          </div>
 
-          <div className="flex flex-1 flex-col justify-between gap-2">
-            <div>
-              <h3 className="text-sm font-semibold text-slate-50">
-                {item.title}
-              </h3>
-              {item.subtitle && (
-                <p className="mt-1 text-xs text-slate-300">
-                  {item.subtitle}
-                </p>
-              )}
-              {item.tags && item.tags.length > 0 && (
-                <p className="mt-2 text-[11px] uppercase tracking-wide text-slate-400">
-                  {item.tags.join(" • ")}
-                </p>
-              )}
-            </div>
+          {/* Text + meta */}
+          <div className="mt-3 flex flex-col gap-1">
+            <h3 className="text-sm font-semibold text-slate-50">
+              {item.title}
+            </h3>
 
-            <div className="mt-2 flex items-center justify-end gap-3 text-[11px] text-slate-400">
+            {item.subtitle && item.subtitle.trim().length > 0 && (
+              <p className="text-xs text-slate-300">
+                {item.subtitle}
+              </p>
+            )}
+
+            {item.tags && item.tags.length > 0 && (
+              <p className="mt-1 text-[11px] uppercase tracking-wide text-slate-400">
+                {item.tags
+                  .map((t) => t.trim())
+                  .filter(Boolean)
+                  .join(" · ")}
+              </p>
+            )}
+
+            <div className="mt-1 flex items-center justify-end gap-3 text-[11px] text-slate-400">
               <span className="inline-flex items-center gap-1">
-                <span aria-hidden="true">♡</span>
-                {item.likes ?? 0}
+                <span aria-hidden>♥</span>
+                <span>{item.likes ?? 0}</span>
               </span>
               <span className="inline-flex items-center gap-1">
-                <span aria-hidden="true">👁</span>
-                {item.views ?? 0}
+                <span aria-hidden>👁</span>
+                <span>{item.views ?? 0}</span>
               </span>
             </div>
           </div>

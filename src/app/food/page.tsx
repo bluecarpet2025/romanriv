@@ -1,6 +1,6 @@
-// src/app/food/page.tsx
 import { GalleryGrid, GalleryItem } from "@/components/GalleryGrid";
 import { supabase, getMediaPublicUrl } from "@/lib/supabase";
+import { PhotoViewTracker } from "@/components/PhotoViewTracker";
 
 export const metadata = {
   title: "Food | romanriv.com",
@@ -92,6 +92,9 @@ export default async function FoodPage() {
         </div>
 
         <GalleryGrid items={items} />
+
+        {/* bump views for all photos rendered on this page */}
+        <PhotoViewTracker ids={items.map((item) => item.id)} />
       </section>
     </div>
   );

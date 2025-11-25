@@ -1,6 +1,6 @@
-// src/app/cars/page.tsx
 import { GalleryGrid, GalleryItem } from "@/components/GalleryGrid";
 import { supabase, getMediaPublicUrl } from "@/lib/supabase";
+import { PhotoViewTracker } from "@/components/PhotoViewTracker";
 
 export const metadata = {
   title: "Cars | romanriv.com",
@@ -75,9 +75,9 @@ export default async function CarsPage() {
           modified.
         </p>
         <p className="mt-2 text-sm text-slate-400">
-          Same rules as the food page: each picture gets tags, likes, and views.
-          If you want to talk about any of them, the discussion lives in the
-          global threads, not under each photo.
+          Same rules as the food page: each picture gets tags and likes. If you
+          want to talk about any of them, the discussion lives in the global
+          threads, not under each photo.
         </p>
       </header>
 
@@ -90,6 +90,9 @@ export default async function CarsPage() {
         </div>
 
         <GalleryGrid items={items} />
+
+        {/* bump views for all car photos on this page */}
+        <PhotoViewTracker ids={items.map((item) => item.id)} />
       </section>
     </div>
   );
