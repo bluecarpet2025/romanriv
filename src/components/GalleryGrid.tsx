@@ -1,14 +1,16 @@
-// src/components/GalleryGrid.tsx
 import Image from "next/image";
+import Link from "next/link";
+import { LikeButton } from "@/components/LikeButton";
+import { PhotoViewTracker } from "@/components/PhotoViewTracker";
 
 export type GalleryItem = {
-  id: number | string;
+  id: string | number;
   title: string;
-  subtitle?: string | null;
+  subtitle?: string;
   imageUrl: string;
   tags?: string[];
-  likes?: number | null;
-  views?: number | null;
+  likes?: number;
+  views?: number;
 };
 
 type GalleryGridProps = {
@@ -19,62 +21,86 @@ export function GalleryGrid({ items }: GalleryGridProps) {
   if (!items || items.length === 0) {
     return (
       <p className="mt-4 text-sm text-slate-400">
-        No items yet. Once you upload photos, they’ll show up here.
+        Nothing here yet. Once you add photos, they&apos;ll show up in this
+        list.
       </p>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {items.map((item) => (
         <article
           key={item.id}
-          className="card overflow-hidden"
+          className="card overflow-hidden p-0 sm:p-0"
         >
-          {/* Image wrapper – keeps the card shape, but lets the whole photo be visible */}
-          <div className="rounded-md bg-slate-950/80 overflow-hidden flex items-center justify-center">
-            <Image
-              src={item.imageUrl}
-              alt={item.title}
-              width={1600}
-              height={1200}
-              className="w-full h-auto object-contain"
-              priority={false}
-            />
+          {/* Image */}
+          <div className="relative w-full overflow-hidden bg-slate-900">
+            <div className="relative mx-auto max-w-3xl">
+              <div className="relative aspect-[4/3] w-full">
+                <Image
+                  src={item.imageUrl}
+                  alt={item.title}
+                  fill
+                  sizes="(min-width: 1024px) 800px, 100vw"
+                  className="object-contain"
+                  priority={false}
+                />
+              </div>
+            </div>
           </div>
 
           {/* Text + meta */}
-          <div className="mt-3 flex flex-col gap-1">
-            <h3 className="text-sm font-semibold text-slate-50">
+          <div className="flex flex-col gap-1 px-4 py-3 sm:px-6 sm:py-4">
+            {/* Title */}
+            <h3 className="text-sm font-semibold text-slate-50 sm:text-base">
               {item.title}
             </h3>
 
-            {item.subtitle && item.subtitle.trim().length > 0 && (
-              <p className="text-xs text-slate-300">
+            {/* Subtitle / description */}
+            {item.subtitle && (
+              <p className="text-xs text-slate-400 sm:text-sm">
                 {item.subtitle}
               </p>
             )}
 
-            {item.tags && item.tags.length > 0 && (
-              <p className="mt-1 text-[11px] uppercase tracking-wide text-slate-400">
-                {item.tags
-                  .map((t) => t.trim())
-                  .filter(Boolean)
-                  .join(" · ")}
-              </p>
-            )}
+            {/* Bottom row: tags on left, likes/views on right */}
+            <div className="mt-3 flex items-center justify-between gap-3">
+              {/* Tags: simple, dot-separated */}
+              <div className="text-[11px] uppercase tracking-wide text-slate-400 sm:text-xs">
+                {item.tags && item.tags.length > 0 ? (
+                  <span>
+                    {item.tags
+                      .map((tag) => tag.trim())
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </span>
+                ) : (
+                  <span className="opacity-50">No tags yet</span>
+                )}
+              </div>
 
-            <div className="mt-1 flex items-center justify-end gap-3 text-[11px] text-slate-400">
-              <span className="inline-flex items-center gap-1">
-                <span aria-hidden>♥</span>
-                <span>{item.likes ?? 0}</span>
-              </span>
-              <span className="inline-flex items-center gap-1">
-                <span aria-hidden>👁</span>
-                <span>{item.views ?? 0}</span>
-              </span>
+              {/* Likes + views */}
+              <div className="flex items-center gap-4 text-slate-300">
+                {/* Like button (interactive). Font size here makes the heart bigger */}
+                <div className="text-sm sm:text-base leading-none">
+                  <LikeButton
+                    photoId={String(item.id)}
+                    initialLikes={item.likes ?? 0}
+                  />
+                </div>
+
+                {/* Views (static counter) */}
+                <div className="inline-flex items-center gap-2 text-xs sm:text-sm leading-none opacity-90">
+                  <span className="text-base sm:text-lg">👁</span>
+                  <span className="font-medium">{item.views ?? 0}</span>
+                </div>
+              </div>
             </div>
           </div>
+
+          {/* Invisible view tracker to bump the view counter */}
+          <PhotoViewTracker ids={[String(item.id)]} />
         </article>
       ))}
     </div>
