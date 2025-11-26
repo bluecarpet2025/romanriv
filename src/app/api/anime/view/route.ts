@@ -14,7 +14,7 @@ export async function POST(req: Request) {
 
     // simple "+1" increment – no floor required
     const { data, error } = await supabase
-      .from("anime_titles")
+      .from("anime")
       .select("views")
       .eq("id", id)
       .single();
@@ -31,7 +31,7 @@ export async function POST(req: Request) {
     const newViews = currentViews + 1;
 
     const { data: updated, error: updateError } = await supabase
-      .from("anime_titles")
+      .from("anime")
       .update({ views: newViews })
       .eq("id", id)
       .select("views")

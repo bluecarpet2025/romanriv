@@ -31,7 +31,7 @@ type AnimeRow = {
   tags: string[];
   likes: number;
   views: number;
-  sort_order: number;
+  sortOrder: number;
 };
 
 const STATUS_OPTIONS = [
@@ -54,7 +54,7 @@ function normaliseRow(row: DbAnimeRow): AnimeRow {
     tags: (row.tags ?? []).map((t) => t.trim()).filter(Boolean),
     likes: row.likes ?? 0,
     views: row.views ?? 0,
-    sort_order: row.sort_order ?? 0,
+    sortOrder: row.sort_order ?? 0,
   };
 }
 
@@ -65,6 +65,8 @@ export default function AdminAnimePage() {
   const [saving, setSaving] = useState(false);
   const [adding, setAdding] = useState(false);
 
+  const current = rows[selectedIndex] ?? null;
+
   // Load anime list
   useEffect(() => {
     const load = async () => {
@@ -73,28 +75,28 @@ export default function AdminAnimePage() {
         .from("anime")
         .select(
           "id, title, status, total_seasons, seasons_watched, is_favorite, tags, notes, likes, views, sort_order"
-        )
-        .order("sort_order", { ascending: true });
+        );
 
       if (error) {
         console.error("[admin/anime] load error", error);
         setRows([]);
-        setSelectedIndex(0);
-      } else {
-        const mapped = (data ?? []).map((r) =>
-          normaliseRow(r as DbAnimeRow)
-        );
-        setRows(mapped);
-        setSelectedIndex(0);
+        setLoading(false);
+        return;
       }
 
+      const mapped = (data ?? []).map((r) =>
+        normaliseRow(r as DbAnimeRow)
+      );
+
+      mapped.sort((a, b) => a.sortOrder - b.sortOrder);
+
+      setRows(mapped);
+      setSelectedIndex(0);
       setLoading(false);
     };
 
     load();
   }, []);
-
-  const current = rows[selectedIndex];
 
   const handleFieldChange = <K extends keyof AnimeRow>(
     field: K,
@@ -120,7 +122,7 @@ export default function AdminAnimePage() {
       is_favorite: current.favorite,
       tags: current.tags,
       notes: current.notes,
-      sort_order: current.sort_order,
+      sort_order: current.sortOrder,
     };
 
     const { error } = await supabase
@@ -136,49 +138,61 @@ export default function AdminAnimePage() {
     setSaving(false);
   };
 
-  const handleAddNew = async () => {
-    setAdding(true);
+  const handleAddNew = async () => (
+    setAdding(true),
+    (async () => {
+      const maxSort =
+        rows.length > 0
+          ? Math.max(...rows.map((r) => r.sortOrder))
+          : 0;
 
-    const nextOrder =
-      (rows[rows.length - 1]?.sort_order ?? 0) + 1;
+      const { data, error } = await supabase
+        .from("anime")
+        .insert({
+          title: "New anime",
+          status: "planned",
+          total_seasons: 1,
+          seasons_watched: 0,
+          is_favorite: false,
+          tags: [],
+          notes: "",
+          sort_order: maxSort + 1,
+        })
+        .select(
+          "id, title, status, total_seasons, seasons_watched, is_favorite, tags, notes, likes, views, sort_order"
+        )
+        .single();
 
-    const { data, error } = await supabase
-      .from("anime")
-      .insert({
-        title: "New anime",
-        status: "planned",
-        total_seasons: 1,
-        seasons_watched: 0,
-        is_favorite: false,
-        tags: [],
-        notes: "",
-        sort_order: nextOrder,
-      })
-      .select(
-        "id, title, status, total_seasons, seasons_watched, is_favorite, tags, notes, likes, views, sort_order"
-      )
-      .single();
+      if (error || !data) {
+        console.error("[admin/anime] add error", error);
+        alert("Failed to add anime.");
+        setAdding(false);
+        return;
+      }
 
-    if (error || !data) {
-      console.error("[admin/anime] add error", error);
-      alert("Failed to add anime.");
-    } else {
       const newRow = normaliseRow(data as DbAnimeRow);
-      setRows((prev) => [...prev, newRow]);
-      setSelectedIndex(rows.length); // select the new one
-    }
 
-    setAdding(false);
+      setRows((prev) => {
+        const next = [...prev, newRow].sort(
+          (a, b) => a.sortOrder - b.sortOrder
+        );
+        const newIndex = next.findIndex((r) => r.id === newRow.id);
+        setSelectedIndex(newIndex === -1 ? 0 : newIndex);
+        return next;
+      });
+
+      setAdding(false);
+    })()
+  );
+
+  const goPrev = () => {
+    setSelectedIndex((idx) => (idx > 0 ? idx - 1 : idx));
   };
 
-  const handlePrev = () => {
-    if (!rows.length) return;
-    setSelectedIndex((i) => (i === 0 ? rows.length - 1 : i - 1));
-  };
-
-  const handleNext = () => {
-    if (!rows.length) return;
-    setSelectedIndex((i) => (i === rows.length - 1 ? 0 : i + 1));
+  const goNext = () => {
+    setSelectedIndex((idx) =>
+      idx < rows.length - 1 ? idx + 1 : idx
+    );
   };
 
   return (
@@ -188,32 +202,32 @@ export default function AdminAnimePage() {
           Anime admin
         </h1>
         <p className="mt-3 text-sm text-slate-300">
-          Manage your anime list here. This is only for you – the public
-          page under <code className="px-1">/anime</code> will render a
-          nicer view of this data.
+          Manage your anime list here. This is only for you – the public page
+          under <code className="px-1">/anime</code> will render a nicer view
+          of this data.
         </p>
       </header>
 
       <section className="card mt-4 space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-2">
+        {/* Header row with fixed spacing */}
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center gap-3">
             <h2 className="text-sm font-semibold text-slate-100">
               Anime list
             </h2>
+
             {rows.length > 0 && (
-              <>
-                <span className="text-xs text-slate-400">
-                  Select title:
-                </span>
+              <div className="flex flex-wrap items-center gap-2 text-xs text-slate-200">
+                <span>Select title:</span>
                 <select
-                  className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100"
                   value={current?.id ?? ""}
                   onChange={(e) => {
                     const idx = rows.findIndex(
                       (r) => r.id === e.target.value
                     );
-                    if (idx >= 0) setSelectedIndex(idx);
+                    if (idx !== -1) setSelectedIndex(idx);
                   }}
+                  className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100"
                 >
                   {rows.map((row) => (
                     <option key={row.id} value={row.id}>
@@ -222,25 +236,22 @@ export default function AdminAnimePage() {
                     </option>
                   ))}
                 </select>
-                <div className="flex items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={handlePrev}
-                    className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200 hover:bg-slate-800"
-                    title="Previous"
-                  >
-                    ←
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleNext}
-                    className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200 hover:bg-slate-800"
-                    title="Next"
-                  >
-                    →
-                  </button>
-                </div>
-              </>
+
+                <button
+                  type="button"
+                  onClick={goPrev}
+                  className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100"
+                >
+                  ←
+                </button>
+                <button
+                  type="button"
+                  onClick={goNext}
+                  className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100"
+                >
+                  →
+                </button>
+              </div>
             )}
           </div>
 
@@ -256,139 +267,140 @@ export default function AdminAnimePage() {
 
         {loading ? (
           <p className="text-sm text-slate-400">Loading…</p>
-        ) : !rows.length ? (
+        ) : !current ? (
           <p className="text-sm text-slate-400">
             No anime yet. Click &quot;Add anime&quot; to start.
           </p>
         ) : (
-          current && (
-            <div className="rounded-md border border-slate-800 bg-slate-950/60 p-3 text-xs sm:text-sm">
-              <div className="flex flex-wrap items-center gap-3">
-                <label className="flex items-center gap-1 text-slate-200">
-                  <input
-                    type="checkbox"
-                    checked={current.favorite}
-                    onChange={(e) =>
-                      handleFieldChange("favorite", e.target.checked)
-                    }
-                    className="h-4 w-4 rounded border-slate-600 bg-slate-900"
-                  />
-                  <span>Favorite</span>
-                </label>
+          <div className="space-y-3 rounded-md border border-slate-800 bg-slate-950/60 p-3 text-xs sm:text-sm">
+            {/* Favorite + title + status + seasons */}
+            <div className="flex flex-wrap items-center gap-3">
+              <label className="flex items-center gap-1 text-slate-200">
+                <input
+                  type="checkbox"
+                  checked={current.favorite}
+                  onChange={(e) =>
+                    handleFieldChange("favorite", e.target.checked)
+                  }
+                  className="h-4 w-4 rounded border-slate-600 bg-slate-900"
+                />
+                <span>Favorite</span>
+              </label>
 
-                <div className="min-w-[160px] flex-1">
-                  <label className="block text-slate-300">Title</label>
-                  <input
-                    type="text"
-                    value={current.title}
-                    onChange={(e) =>
-                      handleFieldChange("title", e.target.value)
-                    }
-                    className="mt-1 w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-slate-300">Status</label>
-                  <select
-                    value={current.status}
-                    onChange={(e) =>
-                      handleFieldChange("status", e.target.value)
-                    }
-                    className="mt-1 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100"
-                  >
-                    {STATUS_OPTIONS.map((s) => (
-                      <option key={s} value={s}>
-                        {s}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-slate-300">
-                    Seasons (watched / total)
-                  </label>
-                  <div className="mt-1 flex items-center gap-1">
-                    <input
-                      type="number"
-                      min={0}
-                      value={current.seasons_watched}
-                      onChange={(e) =>
-                        handleFieldChange(
-                          "seasons_watched",
-                          Number(e.target.value)
-                        )
-                      }
-                      className="w-14 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100"
-                    />
-                    <span>/</span>
-                    <input
-                      type="number"
-                      min={1}
-                      value={current.total_seasons}
-                      onChange={(e) =>
-                        handleFieldChange(
-                          "total_seasons",
-                          Number(e.target.value)
-                        )
-                      }
-                      className="w-14 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100"
-                    />
-                  </div>
-                </div>
+              <div className="flex-1 min-w-[160px]">
+                <label className="block text-slate-300">Title</label>
+                <input
+                  type="text"
+                  value={current.title}
+                  onChange={(e) =>
+                    handleFieldChange("title", e.target.value)
+                  }
+                  className="mt-1 w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100"
+                />
               </div>
 
-              <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                <div>
-                  <label className="block text-slate-300">
-                    Tags (comma-separated)
-                  </label>
+              <div>
+                <label className="block text-slate-300">Status</label>
+                <select
+                  value={current.status}
+                  onChange={(e) =>
+                    handleFieldChange("status", e.target.value)
+                  }
+                  className="mt-1 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100"
+                >
+                  {STATUS_OPTIONS.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-slate-300">
+                  Seasons (watched / total)
+                </label>
+                <div className="mt-1 flex items-center gap-1">
                   <input
-                    type="text"
-                    value={current.tags.join(", ")}
+                    type="number"
+                    min={0}
+                    value={current.seasons_watched}
                     onChange={(e) =>
                       handleFieldChange(
-                        "tags",
-                        e.target.value
-                          .split(",")
-                          .map((t) => t.trim())
-                          .filter(Boolean)
+                        "seasons_watched",
+                        Number(e.target.value)
                       )
                     }
-                    className="mt-1 w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100"
+                    className="w-14 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100"
                   />
-                </div>
-
-                <div>
-                  <label className="block text-slate-300">Notes</label>
-                  <textarea
-                    rows={2}
-                    value={current.notes ?? ""}
+                  <span>/</span>
+                  <input
+                    type="number"
+                    min={1}
+                    value={current.total_seasons}
                     onChange={(e) =>
-                      handleFieldChange("notes", e.target.value)
+                      handleFieldChange(
+                        "total_seasons",
+                        Number(e.target.value)
+                      )
                     }
-                    className="mt-1 w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100"
+                    className="w-14 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100"
                   />
                 </div>
-              </div>
-
-              <div className="mt-3 flex items-center justify-between text-xs text-slate-500">
-                <span>
-                  Position: {current.sort_order} · Likes:{" "}
-                  {current.likes ?? 0} · Views: {current.views ?? 0}
-                </span>
-                <button
-                  type="button"
-                  onClick={handleSave}
-                  disabled={saving}
-                  className="rounded-md bg-sky-600 px-3 py-1 text-xs font-semibold text-white hover:bg-sky-500 disabled:opacity-60"
-                >
-                  {saving ? "Saving..." : "Save changes"}
-                </button>
               </div>
             </div>
-          )
+
+            {/* Tags + notes */}
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <label className="block text-slate-300">
+                  Tags (comma-separated)
+                </label>
+                <input
+                  type="text"
+                  value={current.tags.join(", ")}
+                  onChange={(e) =>
+                    handleFieldChange(
+                      "tags",
+                      e.target.value
+                        .split(",")
+                        .map((t) => t.trim())
+                        .filter(Boolean)
+                    )
+                  }
+                  className="mt-1 w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-300">Notes</label>
+                <textarea
+                  rows={2}
+                  value={current.notes ?? ""}
+                  onChange={(e) =>
+                    handleFieldChange("notes", e.target.value)
+                  }
+                  className="mt-1 w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100"
+                />
+              </div>
+            </div>
+
+            {/* Position + likes/views + save */}
+            <div className="mt-1 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
+              <span>
+                Position: {current.sortOrder} · Likes: {current.likes} ·
+                Views: {current.views}
+              </span>
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={saving}
+                className="rounded-md bg-sky-600 px-3 py-1 text-xs font-semibold text-white hover:bg-sky-500 disabled:opacity-60"
+              >
+                {saving ? "Saving..." : "Save changes"}
+              </button>
+            </div>
+          </div>
         )}
       </section>
     </div>

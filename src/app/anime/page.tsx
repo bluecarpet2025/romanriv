@@ -15,7 +15,7 @@ type DbAnimeRow = {
   total_seasons: number | null;
   seasons_watched: number | null;
   is_favorite: boolean | null;
-  tags: string[] | null;
+  tags: string[] | null; // text[]
   notes: string | null;
   likes: number | null;
   views: number | null;
@@ -34,7 +34,7 @@ type AnimeRow = {
   tags: string[];
   likes: number;
   views: number;
-  sort_order: number;
+  sortOrder: number;
 };
 
 async function getAnime(): Promise<AnimeRow[]> {
@@ -42,15 +42,14 @@ async function getAnime(): Promise<AnimeRow[]> {
     .from("anime")
     .select(
       "id, title, status, total_seasons, seasons_watched, is_favorite, tags, notes, likes, views, sort_order"
-    )
-    .order("sort_order", { ascending: true });
+    );
 
   if (error || !data) {
     console.error("[anime] load error", error);
     return [];
   }
 
-  return (data as DbAnimeRow[]).map((row) => ({
+  const mapped: AnimeRow[] = (data as DbAnimeRow[]).map((row) => ({
     id: row.id,
     title: row.title,
     favorite: !!row.is_favorite,
@@ -61,13 +60,17 @@ async function getAnime(): Promise<AnimeRow[]> {
     tags: (row.tags ?? []).map((t) => t.trim()).filter(Boolean),
     likes: row.likes ?? 0,
     views: row.views ?? 0,
-    sort_order: row.sort_order ?? 0,
+    sortOrder: row.sort_order ?? 9999,
   }));
+
+  // Respect your Excel order
+  mapped.sort((a, b) => a.sortOrder - b.sortOrder);
+
+  return mapped;
 }
 
 function formatStatus(row: AnimeRow) {
   const { status, seasons_watched, total_seasons } = row;
-
   const seasonsPart =
     total_seasons > 0
       ? `${seasons_watched} of ${total_seasons} season${
@@ -75,104 +78,83 @@ function formatStatus(row: AnimeRow) {
         }`
       : null;
 
-  if (seasonsPart) return `${status} • ${seasonsPart}`;
+  if (seasonsPart) {
+    return `${status} • ${seasonsPart}`;
+  }
   return status;
 }
 
 function TagLine({ tags }: { tags: string[] }) {
   if (!tags || tags.length === 0) {
     return (
-      <span className="text-[11px] uppercase tracking-wide text-slate-500">
+      <span className="text-[10px] uppercase tracking-wide text-slate-500">
         No tags yet
       </span>
     );
   }
-
   return (
-    <span className="text-[11px] uppercase tracking-wide text-slate-400">
+    <span className="text-[10px] uppercase tracking-wide text-slate-400">
       {tags.join(" · ")}
     </span>
   );
 }
 
-function Section({
-  title,
-  subtitle,
-  rows,
-}: {
-  title: string;
-  subtitle: string;
-  rows: AnimeRow[];
-}) {
+// SMALL, TIGHT GRID
+function AnimeGrid({ rows }: { rows: AnimeRow[] }) {
   if (!rows.length) return null;
 
   return (
-    <section className="mt-6">
-      <div className="flex items-baseline justify-between gap-2">
-        <h2 className="section-title">{title}</h2>
-        <p className="section-subtitle">{subtitle}</p>
-      </div>
-
-      {/* Card grid – Crunchyroll-ish */}
-      <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {rows.map((row) => (
-          <article
-            key={row.id}
-            className="group flex flex-col overflow-hidden rounded-xl border border-slate-800 bg-slate-950/80 shadow-sm transition hover:border-sky-500/80 hover:bg-slate-900/80"
-          >
-            {/* Placeholder “image” area – title centered.
-                Later we can swap this to a real cover image. */}
-            <div className="relative flex aspect-[16/9] items-center justify-center bg-slate-900/80">
-              <span className="mx-3 text-center text-xs font-semibold text-slate-100 sm:text-sm line-clamp-2">
+    <div className="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+      {rows.map((row) => (
+        <article
+          key={row.id}
+          className="relative flex flex-col overflow-hidden rounded-lg border border-slate-800 bg-slate-950/80 shadow-sm"
+        >
+          {/* Poster area – fixed small height */}
+          <div className="relative h-28 sm:h-32 bg-slate-900/70">
+            {/* Favorite badge */}
+            {row.favorite && (
+              <div className="absolute left-2 top-2 rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-semibold text-black">
+                ★ Favorite
+              </div>
+            )}
+            {/* Centered title */}
+            <div className="flex h-full items-center justify-center px-2 text-center">
+              <h3 className="text-[11px] font-semibold text-slate-50 sm:text-xs">
                 {row.title}
-              </span>
-
-              {row.favorite && (
-                <span className="absolute left-2 top-2 inline-flex h-6 items-center rounded-full bg-amber-400/90 px-2 text-[11px] font-semibold text-slate-900">
-                  ★ Favorite
-                </span>
-              )}
+              </h3>
             </div>
+          </div>
 
-            {/* Meta strip */}
-            <div className="flex flex-1 flex-col justify-between px-3 py-2">
-              <div className="space-y-1">
-                <p className="text-[11px] font-medium text-slate-300 sm:text-xs">
-                  {formatStatus(row)}
-                </p>
+          {/* Meta area – compact */}
+          <div className="flex flex-col gap-1 border-t border-slate-800 px-2 py-2">
+            <p className="text-[10px] text-slate-400 sm:text-[11px]">
+              {formatStatus(row)}
+            </p>
 
-                {row.notes && (
-                  <p className="line-clamp-2 text-[11px] text-slate-400 sm:text-xs">
-                    {row.notes}
-                  </p>
-                )}
+            <TagLine tags={row.tags} />
 
-                <TagLine tags={row.tags} />
-              </div>
-
-              <div className="mt-2 flex items-center justify-between text-[11px] text-slate-400">
-                <AnimeLikeButton
-                  animeId={row.id}
-                  initialLikes={row.likes ?? 0}
-                />
-                <div className="inline-flex items-center gap-1">
-                  <span aria-hidden="true">👁</span>
-                  <span className="tabular-nums">{row.views ?? 0}</span>
-                </div>
+            <div className="mt-1 flex items-center justify-between text-[10px] text-slate-500">
+              <AnimeLikeButton
+                animeId={row.id}
+                initialLikes={row.likes ?? 0}
+              />
+              <div className="inline-flex items-center gap-1">
+                <span aria-hidden="true">👁</span>
+                <span className="tabular-nums">{row.views ?? 0}</span>
               </div>
             </div>
+          </div>
 
-            {/* Increment per-anime views */}
-            <AnimeViewTracker id={row.id} />
-          </article>
-        ))}
-      </div>
-    </section>
+          {/* bump per-anime views */}
+          <AnimeViewTracker id={row.id} />
+        </article>
+      ))}
+    </div>
   );
 }
 
 export default async function AnimePage() {
-  // Load in DB order (sort_order asc)
   const all = await getAnime();
 
   const watching = all.filter((a) => a.status === "watching");
@@ -200,29 +182,55 @@ export default async function AnimePage() {
         </p>
       </header>
 
-      <Section
-        title="Currently watching"
-        subtitle="Shows I’m actively working through."
-        rows={watching}
-      />
+      {/* Watching */}
+      {watching.length > 0 && (
+        <section className="mt-4">
+          <div className="flex items-baseline justify-between">
+            <h2 className="section-title">Currently watching</h2>
+            <p className="section-subtitle">
+              Shows I&apos;m actively working through.
+            </p>
+          </div>
+          <AnimeGrid rows={watching} />
+        </section>
+      )}
 
-      <Section
-        title="Planned"
-        subtitle="On the radar, just not started yet."
-        rows={planned}
-      />
+      {/* Planned */}
+      {planned.length > 0 && (
+        <section className="mt-6">
+          <div className="flex items-baseline justify-between">
+            <h2 className="section-title">Planned</h2>
+            <p className="section-subtitle">
+              On the radar, just not started yet.
+            </p>
+          </div>
+          <AnimeGrid rows={planned} />
+        </section>
+      )}
 
-      <Section
-        title="Completed"
-        subtitle="Favorites float to the top of the list visually."
-        rows={watched}
-      />
+      {/* Watched */}
+      {watched.length > 0 && (
+        <section className="mt-6">
+          <div className="flex items-baseline justify-between">
+            <h2 className="section-title">Completed</h2>
+            <p className="section-subtitle">Finished shows.</p>
+          </div>
+          <AnimeGrid rows={watched} />
+        </section>
+      )}
 
-      <Section
-        title="Other"
-        subtitle="On-hold, dropped, or anything that doesn’t fit neatly above."
-        rows={others}
-      />
+      {/* Others */}
+      {others.length > 0 && (
+        <section className="mt-6">
+          <div className="flex items-baseline justify-between">
+            <h2 className="section-title">Other</h2>
+            <p className="section-subtitle">
+              On-hold, dropped, or anything that doesn&apos;t fit neatly above.
+            </p>
+          </div>
+          <AnimeGrid rows={others} />
+        </section>
+      )}
 
       {all.length === 0 && (
         <p className="mt-6 text-sm text-slate-400">
