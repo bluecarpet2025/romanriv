@@ -105,10 +105,11 @@ function AnimeGrid({ rows }: { rows: AnimeRow[] }) {
 
   return (
     <div
-      className="mt-3 gap-10"
+      className="mt-3"
       style={{
         display: "grid",
         gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
+        gap: "1rem", // ⬅ spacing between tiles (both directions)
       }}
     >
       {rows.map((row) => (
