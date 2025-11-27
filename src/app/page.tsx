@@ -1,8 +1,19 @@
 // src/app/page.tsx
+import Image from "next/image";
 import { SectionCard } from "@/components/SectionCard";
-import { GalleryGrid, GalleryItem } from "@/components/GalleryGrid";
-import { ThreadList, ThreadSummary } from "@/components/ThreadList";
 import { supabase, getMediaPublicUrl } from "@/lib/supabase";
+
+// ----- Types -----
+
+export type GalleryItem = {
+  id: number | string;
+  title: string;
+  subtitle?: string;
+  imageUrl: string;
+  tags: string[];
+};
+
+// ----- Data loaders -----
 
 async function getHomeFood(): Promise<GalleryItem[]> {
   const fallback: GalleryItem[] = [
@@ -76,56 +87,18 @@ async function getHomeCars(): Promise<GalleryItem[]> {
   }));
 }
 
-async function getHomeThreads(): Promise<ThreadSummary[]> {
-  const fallback: ThreadSummary[] = [
-    {
-      id: "1",
-      title: "What anime should I binge next weekend?",
-      category: "anime",
-      commentCount: 8,
-      createdAt: "Nov 2025",
-    },
-    {
-      id: "2",
-      title: "Most photogenic meals you’ve cooked recently",
-      category: "food",
-      commentCount: 5,
-      createdAt: "Oct 2025",
-    },
-    {
-      id: "3",
-      title: "Thoughts on the GR Corolla vs Civic Type R",
-      category: "cars",
-      commentCount: 12,
-      createdAt: "Sep 2025",
-    },
-  ];
-
-  const { data, error } = await supabase
-    .from("threads")
-    .select("id, title, category, comment_count, created_at")
-    .order("created_at", { ascending: false })
-    .limit(5);
-
-  if (error || !data || data.length === 0) return fallback;
-
-  return data.map((row) => ({
-    id: row.id as string,
-    title: row.title as string,
-    category: row.category as ThreadSummary["category"],
-    commentCount: (row.comment_count as number) ?? 0,
-    createdAt: new Date(row.created_at as string).toLocaleDateString("en-US", {
-      month: "short",
-      year: "numeric",
-    }),
-  }));
-}
+// Simple static anime previews for now – you can swap these
+// for real anime cover URLs later if you want.
+const ANIME_PREVIEW_IMAGES = [
+  "/placeholder-anime-1.jpg",
+  "/placeholder-anime-2.jpg",
+  "/placeholder-anime-3.jpg",
+];
 
 export default async function HomePage() {
-  const [foodItems, carItems, threads] = await Promise.all([
+  const [foodItems, carItems] = await Promise.all([
     getHomeFood(),
     getHomeCars(),
-    getHomeThreads(),
   ]);
 
   return (
@@ -147,46 +120,103 @@ export default async function HomePage() {
         </p>
       </section>
 
-      {/* Food / Cars / Anime */}
-      <section className="space-y-4">
+      {/* Food / Cars / Anime – 3 tiles in a row on desktop */}
+      <section className="mt-4 grid gap-4 md:grid-cols-3">
+        {/* Food */}
         <SectionCard
           title="Food"
           description="Collage of the meals I cook and plate – mostly post-gym and weekend experiments."
           href="/food"
           badge="Gallery"
         >
-          <div className="mt-3">
-            <GalleryGrid items={foodItems} />
+          <div className="mt-3 grid grid-cols-3 gap-2">
+            {foodItems.slice(0, 3).map((item) => (
+              <div
+                key={item.id}
+                className="relative aspect-[4/5] overflow-hidden rounded-md border border-slate-800/80 bg-slate-900/80"
+              >
+                <Image
+                  src={item.imageUrl}
+                  alt={item.title}
+                  fill
+                  className="object-cover"
+                />
+              </div>
+            ))}
           </div>
         </SectionCard>
 
+        {/* Cars */}
         <SectionCard
           title="Cars"
           description="My current GR Corolla and a timeline of the cars that came before it."
           href="/cars"
           badge="Garage"
         >
-          <div className="mt-3">
-            <GalleryGrid items={carItems} />
+          <div className="mt-3 grid grid-cols-3 gap-2">
+            {carItems.slice(0, 3).map((item) => (
+              <div
+                key={item.id}
+                className="relative aspect-[4/5] overflow-hidden rounded-md border border-slate-800/80 bg-slate-900/80"
+              >
+                <Image
+                  src={item.imageUrl}
+                  alt={item.title}
+                  fill
+                  className="object-cover"
+                />
+              </div>
+            ))}
+
+            {/* If you only have 1 car photo, this keeps the row looking full */}
+            {carItems.length === 1 &&
+              [1, 2].map((idx) => (
+                <div
+                  key={`car-placeholder-${idx}`}
+                  className="relative aspect-[4/5] overflow-hidden rounded-md border border-slate-800/40 bg-slate-950/60"
+                >
+                  <div className="flex h-full w-full items-center justify-center text-[10px] text-slate-500">
+                    More shots coming soon
+                  </div>
+                </div>
+              ))}
           </div>
         </SectionCard>
 
+        {/* Anime */}
         <SectionCard
           title="Anime"
           description="Watchlists, long-form shows, and the series I come back to over and over."
           href="/anime"
           badge="Lists"
         >
-          <ul className="mt-3 space-y-2 text-sm text-slate-300">
-            <li>• Currently watching & seasonal shows.</li>
-            <li>• Completed list & rewatch candidates.</li>
+          {/* 3 small anime tiles in a row */}
+          <div className="mt-3 grid grid-cols-3 gap-2">
+            {ANIME_PREVIEW_IMAGES.map((src, idx) => (
+              <div
+                key={idx}
+                className="relative aspect-[4/5] overflow-hidden rounded-md border border-slate-800/80 bg-slate-900/80"
+              >
+                <Image
+                  src={src}
+                  alt={`Anime preview ${idx + 1}`}
+                  fill
+                  className="object-cover"
+                />
+              </div>
+            ))}
+          </div>
+
+          <ul className="mt-3 space-y-1 text-xs text-slate-300">
+            <li>• Currently watching &amp; seasonal shows.</li>
+            <li>• Completed list &amp; rewatch candidates.</li>
             <li>• Special lists for long shounen and comfy shows.</li>
           </ul>
         </SectionCard>
       </section>
 
-      {/* Projects + Recent discussions */}
-      <section className="space-y-4">
+      {/* Projects only – discussions removed */}
+      <section className="mt-6">
         <SectionCard
           title="Projects"
           description="Notes and updates on Kiori Solutions, KDP experiments, and other side projects."
@@ -201,12 +231,6 @@ export default async function HomePage() {
             </li>
           </ul>
         </SectionCard>
-
-        <ThreadList
-          title="Recent discussions"
-          threads={threads}
-          showCategoryFilterHint
-        />
       </section>
     </div>
   );
