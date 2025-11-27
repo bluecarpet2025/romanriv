@@ -1,3 +1,4 @@
+// src/app/cars/page.tsx
 import Image from "next/image";
 import { LikeButton } from "@/components/LikeButton";
 import { supabase, getMediaPublicUrl } from "@/lib/supabase";
@@ -7,18 +8,18 @@ export const metadata = {
   title: "Cars | romanriv.com",
 };
 
-export type GalleryItem = {
+type CarItem = {
   id: string | number;
   title: string;
   subtitle?: string;
   imageUrl: string;
-  tags?: string[];
-  likes?: number;
-  views?: number;
+  tags: string[];
+  likes: number;
+  views: number;
 };
 
-async function getCarPhotos(): Promise<GalleryItem[]> {
-  const fallback: GalleryItem[] = [
+async function getCarPhotos(): Promise<CarItem[]> {
+  const fallback: CarItem[] = [
     {
       id: 1,
       title: "2024 GR Corolla Circuit Edition",
@@ -70,6 +71,81 @@ async function getCarPhotos(): Promise<GalleryItem[]> {
   }));
 }
 
+function CarsGrid({ items }: { items: CarItem[] }) {
+  if (!items.length) {
+    return (
+      <p className="mt-4 text-sm text-slate-400">
+        No car photos yet. Once you add some, they&apos;ll show up here.
+      </p>
+    );
+  }
+
+  return (
+    <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {items.map((item) => (
+        <article
+          key={item.id}
+          className="group flex flex-col overflow-hidden rounded-xl bg-slate-950/90 text-xs shadow-sm ring-1 ring-slate-800/80 transition hover:bg-slate-900/90 hover:ring-sky-500/70"
+        >
+          {/* Image */}
+          <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-900">
+            <Image
+              src={item.imageUrl}
+              alt={item.title}
+              fill
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+              className="object-cover"
+            />
+          </div>
+
+          {/* Content */}
+          <div className="flex flex-1 flex-col gap-2 px-3 py-3">
+            <h3 className="text-sm font-semibold text-slate-50 line-clamp-2">
+              {item.title}
+            </h3>
+
+            {item.subtitle && (
+              <p className="text-[11px] text-slate-400 line-clamp-2">
+                {item.subtitle}
+              </p>
+            )}
+
+            <div className="mt-1 flex items-end justify-between gap-3">
+              {/* Tags */}
+              <div className="text-[10px] uppercase tracking-wide text-slate-500 line-clamp-1">
+                {item.tags && item.tags.length > 0 ? (
+                  item.tags
+                    .map((t) => t.trim())
+                    .filter(Boolean)
+                    .join(" · ")
+                ) : (
+                  <span className="opacity-50">No tags yet</span>
+                )}
+              </div>
+
+              {/* Likes + views */}
+              <div className="flex items-center gap-3 text-slate-300">
+                <div className="text-sm leading-none">
+                  <LikeButton
+                    photoId={String(item.id)}
+                    initialLikes={item.likes ?? 0}
+                  />
+                </div>
+                <div className="inline-flex items-center gap-1 text-[11px] leading-none opacity-90">
+                  <span className="text-base">👁</span>
+                  <span className="font-medium tabular-nums">
+                    {item.views ?? 0}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </article>
+      ))}
+    </div>
+  );
+}
+
 export default async function CarsPage() {
   const items = await getCarPhotos();
 
@@ -100,67 +176,7 @@ export default async function CarsPage() {
           </p>
         </div>
 
-        {/* TILE GRID (3 across on desktop) */}
-        <div className="mt-2 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {items.map((item) => (
-            <article
-              key={item.id}
-              className="group flex flex-col overflow-hidden rounded-xl bg-slate-950/90 text-xs shadow-sm ring-1 ring-slate-800/80 transition hover:bg-slate-900/90 hover:ring-sky-500/70"
-            >
-              <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-900">
-                <Image
-                  src={item.imageUrl}
-                  alt={item.title}
-                  fill
-                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                  className="object-cover"
-                />
-              </div>
-
-              <div className="flex flex-1 flex-col gap-2 px-3 py-3">
-                <h3 className="text-sm font-semibold text-slate-50 line-clamp-2">
-                  {item.title}
-                </h3>
-
-                {item.subtitle && (
-                  <p className="text-[11px] text-slate-400 line-clamp-2">
-                    {item.subtitle}
-                  </p>
-                )}
-
-                <div className="mt-1 flex items-end justify-between gap-3">
-                  <div className="text-[10px] uppercase tracking-wide text-slate-500 line-clamp-1">
-                    {item.tags && item.tags.length > 0 ? (
-                      <span>
-                        {item.tags
-                          .map((tag) => tag.trim())
-                          .filter(Boolean)
-                          .join(" · ")}
-                      </span>
-                    ) : (
-                      <span className="opacity-50">No tags yet</span>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-3 text-slate-300">
-                    <div className="text-sm leading-none">
-                      <LikeButton
-                        photoId={String(item.id)}
-                        initialLikes={item.likes ?? 0}
-                      />
-                    </div>
-                    <div className="inline-flex items-center gap-1 text-[11px] leading-none opacity-90">
-                      <span className="text-base">👁</span>
-                      <span className="font-medium tabular-nums">
-                        {item.views ?? 0}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </article>
-          ))}
-        </div>
+        <CarsGrid items={items} />
 
         {/* bump views for all car photos on this page */}
         <PhotoViewTracker ids={items.map((item) => item.id)} />
