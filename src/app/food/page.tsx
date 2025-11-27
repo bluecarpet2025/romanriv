@@ -81,7 +81,15 @@ function FoodGrid({ items }: { items: FoodItem[] }) {
   }
 
   return (
-    <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <div
+      className="mt-3"
+      style={{
+        display: "grid",
+        // Bigger tiles than anime, aiming for ~3 per row on desktop
+        gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
+        gap: "1rem",
+      }}
+    >
       {items.map((item) => (
         <article
           key={item.id}
