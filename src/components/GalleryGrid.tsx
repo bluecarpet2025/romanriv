@@ -1,5 +1,5 @@
+// src/components/GalleryGrid.tsx
 import Image from "next/image";
-import Link from "next/link";
 import { LikeButton } from "@/components/LikeButton";
 import { PhotoViewTracker } from "@/components/PhotoViewTracker";
 
@@ -28,81 +28,78 @@ export function GalleryGrid({ items }: GalleryGridProps) {
   }
 
   return (
-    <div className="space-y-4">
-      {items.map((item) => (
-        <article
-          key={item.id}
-          className="card overflow-hidden p-0 sm:p-0"
-        >
-          {/* Image */}
-          <div className="relative w-full overflow-hidden bg-slate-900">
-            <div className="relative mx-auto max-w-3xl">
-              <div className="relative aspect-[4/3] w-full">
-                <Image
-                  src={item.imageUrl}
-                  alt={item.title}
-                  fill
-                  sizes="(min-width: 1024px) 800px, 100vw"
-                  className="object-contain"
-                  priority={false}
-                />
-              </div>
+    <>
+      <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {items.map((item) => (
+          <article
+            key={item.id}
+            className="group flex flex-col overflow-hidden rounded-xl bg-slate-950/90 text-xs shadow-sm ring-1 ring-slate-800/80 transition hover:bg-slate-900/90 hover:ring-sky-500/70"
+          >
+            {/* Image */}
+            <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-900">
+              <Image
+                src={item.imageUrl}
+                alt={item.title}
+                fill
+                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                className="object-cover"
+                priority={false}
+              />
             </div>
-          </div>
 
-          {/* Text + meta */}
-          <div className="flex flex-col gap-1 px-4 py-3 sm:px-6 sm:py-4">
-            {/* Title */}
-            <h3 className="text-sm font-semibold text-slate-50 sm:text-base">
-              {item.title}
-            </h3>
+            {/* Text + meta */}
+            <div className="flex flex-1 flex-col gap-2 px-3 py-3">
+              {/* Title */}
+              <h3 className="text-sm font-semibold text-slate-50 line-clamp-2">
+                {item.title}
+              </h3>
 
-            {/* Subtitle / description */}
-            {item.subtitle && (
-              <p className="text-xs text-slate-400 sm:text-sm">
-                {item.subtitle}
-              </p>
-            )}
+              {/* Subtitle / description */}
+              {item.subtitle && (
+                <p className="text-[11px] text-slate-400 line-clamp-2">
+                  {item.subtitle}
+                </p>
+              )}
 
-            {/* Bottom row: tags on left, likes/views on right */}
-            <div className="mt-3 flex items-center justify-between gap-3">
-              {/* Tags: simple, dot-separated */}
-              <div className="text-[11px] uppercase tracking-wide text-slate-400 sm:text-xs">
-                {item.tags && item.tags.length > 0 ? (
-                  <span>
-                    {item.tags
-                      .map((tag) => tag.trim())
-                      .filter(Boolean)
-                      .join(" · ")}
-                  </span>
-                ) : (
-                  <span className="opacity-50">No tags yet</span>
-                )}
-              </div>
-
-              {/* Likes + views */}
-              <div className="flex items-center gap-4 text-slate-300">
-                {/* Like button (interactive). Font size here makes the heart bigger */}
-                <div className="text-sm sm:text-base leading-none">
-                  <LikeButton
-                    photoId={String(item.id)}
-                    initialLikes={item.likes ?? 0}
-                  />
+              {/* Bottom row: tags + likes/views */}
+              <div className="mt-1 flex items-end justify-between gap-3">
+                {/* Tags */}
+                <div className="text-[10px] uppercase tracking-wide text-slate-500 line-clamp-1">
+                  {item.tags && item.tags.length > 0 ? (
+                    <span>
+                      {item.tags
+                        .map((tag) => tag.trim())
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </span>
+                  ) : (
+                    <span className="opacity-50">No tags yet</span>
+                  )}
                 </div>
 
-                {/* Views (static counter) */}
-                <div className="inline-flex items-center gap-2 text-xs sm:text-sm leading-none opacity-90">
-                  <span className="text-base sm:text-lg">👁</span>
-                  <span className="font-medium">{item.views ?? 0}</span>
+                {/* Likes + views */}
+                <div className="flex items-center gap-3 text-slate-300">
+                  <div className="text-sm leading-none">
+                    <LikeButton
+                      photoId={String(item.id)}
+                      initialLikes={item.likes ?? 0}
+                    />
+                  </div>
+                  <div className="inline-flex items-center gap-1 text-[11px] leading-none opacity-90">
+                    <span className="text-base">👁</span>
+                    <span className="font-medium tabular-nums">
+                      {item.views ?? 0}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* Invisible view tracker to bump the view counter */}
-          <PhotoViewTracker ids={[String(item.id)]} />
-        </article>
-      ))}
-    </div>
+            {/* Invisible view tracker to bump the view counter for this photo */}
+            <PhotoViewTracker ids={[String(item.id)]} />
+          </article>
+        ))}
+      </div>
+    </>
   );
 }
