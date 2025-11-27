@@ -1,11 +1,21 @@
 // src/app/page.tsx
+import Image from "next/image";
 import { SectionCard } from "@/components/SectionCard";
-import { GalleryGrid, GalleryItem } from "@/components/GalleryGrid";
 import { supabase, getMediaPublicUrl } from "@/lib/supabase";
 
-/**
- * Utility: pick N random items from an array (Fisher–Yates shuffle)
- */
+export const dynamic = "force-dynamic";
+
+// ----- Types -----
+
+export type GalleryItem = {
+  id: number | string;
+  title: string;
+  subtitle?: string;
+  imageUrl: string;
+  tags: string[];
+};
+
+// Small helper to pick N random items from an array
 function pickRandom<T>(arr: T[], count: number): T[] {
   if (arr.length <= count) return arr;
   const copy = [...arr];
@@ -16,9 +26,7 @@ function pickRandom<T>(arr: T[], count: number): T[] {
   return copy.slice(0, count);
 }
 
-/* --------------------------------------------------
- * HOME FOOD
- * -------------------------------------------------- */
+// ----- Data loaders -----
 
 async function getHomeFood(): Promise<GalleryItem[]> {
   const fallback: GalleryItem[] = [
@@ -50,7 +58,7 @@ async function getHomeFood(): Promise<GalleryItem[]> {
     .select("id, title, description, image_path, tags, category, created_at")
     .eq("category", "food")
     .order("created_at", { ascending: false })
-    .limit(12); // grab a few, we will show 3
+    .limit(12); // grab a few, then randomize
 
   if (error || !data || data.length === 0) return fallback;
 
@@ -64,10 +72,6 @@ async function getHomeFood(): Promise<GalleryItem[]> {
 
   return pickRandom(mapped, 3);
 }
-
-/* --------------------------------------------------
- * HOME CARS
- * -------------------------------------------------- */
 
 async function getHomeCars(): Promise<GalleryItem[]> {
   const fallback: GalleryItem[] = [
@@ -100,9 +104,7 @@ async function getHomeCars(): Promise<GalleryItem[]> {
   return pickRandom(mapped, 3);
 }
 
-/* --------------------------------------------------
- * HOME ANIME – random covers from anime table
- * -------------------------------------------------- */
+// ---- Anime covers from anime table ----
 
 type DbAnimeRow = {
   id: string;
@@ -113,7 +115,7 @@ type DbAnimeRow = {
   cover_url: string | null;
 };
 
-function formatAnimeSubtitle(row: DbAnimeRow): string {
+function formatAnimeStatus(row: DbAnimeRow): string {
   const status = row.status ?? "planned";
   const total = row.total_seasons ?? 1;
   const watched = row.seasons_watched ?? 0;
@@ -124,17 +126,42 @@ function formatAnimeSubtitle(row: DbAnimeRow): string {
   return status;
 }
 
+// Fallback anime images (what you had before)
+const ANIME_FALLBACK: GalleryItem[] = [
+  {
+    id: "anime-fallback-1",
+    title: "Anime preview 1",
+    imageUrl: "/placeholder-anime-1.jpg",
+    subtitle: "",
+    tags: [],
+  },
+  {
+    id: "anime-fallback-2",
+    title: "Anime preview 2",
+    imageUrl: "/placeholder-anime-2.jpg",
+    subtitle: "",
+    tags: [],
+  },
+  {
+    id: "anime-fallback-3",
+    title: "Anime preview 3",
+    imageUrl: "/placeholder-anime-3.jpg",
+    subtitle: "",
+    tags: [],
+  },
+];
+
 async function getHomeAnime(): Promise<GalleryItem[]> {
-  // Grab all anime that actually have a cover image
   const { data, error } = await supabase
     .from("anime")
-    .select("id, title, status, total_seasons, seasons_watched, cover_url")
+    .select(
+      "id, title, status, total_seasons, seasons_watched, cover_url"
+    )
     .not("cover_url", "is", null);
 
   if (error || !data || data.length === 0) {
-    // fallback – just return empty and the section will show blanks
-    console.error("[home] getHomeAnime error", error);
-    return [];
+    console.error("[home] getHomeAnime error or empty", error);
+    return ANIME_FALLBACK;
   }
 
   const rows = data as DbAnimeRow[];
@@ -142,7 +169,7 @@ async function getHomeAnime(): Promise<GalleryItem[]> {
   const mapped: GalleryItem[] = rows.map((row) => ({
     id: row.id,
     title: row.title,
-    subtitle: formatAnimeSubtitle(row),
+    subtitle: formatAnimeStatus(row),
     imageUrl: row.cover_url as string,
     tags: [],
   }));
@@ -150,9 +177,7 @@ async function getHomeAnime(): Promise<GalleryItem[]> {
   return pickRandom(mapped, 3);
 }
 
-/* --------------------------------------------------
- * PAGE
- * -------------------------------------------------- */
+// ----- Page component -----
 
 export default async function HomePage() {
   const [foodItems, carItems, animeItems] = await Promise.all([
@@ -180,44 +205,103 @@ export default async function HomePage() {
         </p>
       </section>
 
-      {/* Food / Cars / Anime */}
-      <section className="space-y-4">
+      {/* Food / Cars / Anime – 3 tiles in a row on desktop */}
+      <section className="mt-4 grid gap-4 md:grid-cols-3">
+        {/* Food */}
         <SectionCard
           title="Food"
           description="Collage of the meals I cook and plate – mostly post-gym and weekend experiments."
           href="/food"
           badge="Gallery"
         >
-          <div className="mt-3">
-            <GalleryGrid items={foodItems} />
+          <div className="mt-3 grid grid-cols-3 gap-2">
+            {foodItems.slice(0, 3).map((item) => (
+              <div
+                key={item.id}
+                className="relative aspect-[4/5] overflow-hidden rounded-md border border-slate-800/80 bg-slate-900/80"
+              >
+                <Image
+                  src={item.imageUrl}
+                  alt={item.title}
+                  fill
+                  className="object-cover"
+                />
+              </div>
+            ))}
           </div>
         </SectionCard>
 
+        {/* Cars */}
         <SectionCard
           title="Cars"
           description="My current GR Corolla and a timeline of the cars that came before it."
           href="/cars"
           badge="Garage"
         >
-          <div className="mt-3">
-            <GalleryGrid items={carItems} />
+          <div className="mt-3 grid grid-cols-3 gap-2">
+            {carItems.slice(0, 3).map((item) => (
+              <div
+                key={item.id}
+                className="relative aspect-[4/5] overflow-hidden rounded-md border border-slate-800/80 bg-slate-900/80"
+              >
+                <Image
+                  src={item.imageUrl}
+                  alt={item.title}
+                  fill
+                  className="object-cover"
+                />
+              </div>
+            ))}
+
+            {/* If you only have 1 car photo, this keeps the row looking full */}
+            {carItems.length === 1 &&
+              [1, 2].map((idx) => (
+                <div
+                  key={`car-placeholder-${idx}`}
+                  className="relative aspect-[4/5] overflow-hidden rounded-md border border-slate-800/40 bg-slate-950/60"
+                >
+                  <div className="flex h-full w-full items-center justify-center text-[10px] text-slate-500">
+                    More shots coming soon
+                  </div>
+                </div>
+              ))}
           </div>
         </SectionCard>
 
+        {/* Anime */}
         <SectionCard
           title="Anime"
-          description="Watchlists, covers, and the series I come back to over and over."
+          description="Watchlists, long-form shows, and the series I come back to over and over."
           href="/anime"
           badge="Lists"
         >
-          <div className="mt-3">
-            <GalleryGrid items={animeItems} />
+          {/* 3 small anime tiles in a row */}
+          <div className="mt-3 grid grid-cols-3 gap-2">
+            {animeItems.slice(0, 3).map((item, idx) => (
+              <div
+                key={item.id ?? `anime-${idx}`}
+                className="relative aspect-[4/5] overflow-hidden rounded-md border border-slate-800/80 bg-slate-900/80"
+              >
+                <Image
+                  src={item.imageUrl}
+                  alt={item.title}
+                  fill
+                  className="object-cover"
+                />
+              </div>
+            ))}
           </div>
+
+          <ul className="mt-3 space-y-1 text-xs text-slate-300">
+            <li>• Currently watching &amp; seasonal shows.</li>
+            <li>• Completed list &amp; rewatch candidates.</li>
+            <li>• Special lists for long shounen and comfy shows.</li>
+          </ul>
         </SectionCard>
       </section>
 
-      {/* Projects */}
-      <section className="space-y-4">
+      {/* Projects only – discussions removed */}
+      <section className="mt-6">
         <SectionCard
           title="Projects"
           description="Notes and updates on Kiori Solutions, KDP experiments, and other side projects."
