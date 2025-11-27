@@ -1,9 +1,20 @@
-import { GalleryGrid, GalleryItem } from "@/components/GalleryGrid";
+import Image from "next/image";
+import { LikeButton } from "@/components/LikeButton";
 import { supabase, getMediaPublicUrl } from "@/lib/supabase";
 import { PhotoViewTracker } from "@/components/PhotoViewTracker";
 
 export const metadata = {
   title: "Cars | romanriv.com",
+};
+
+export type GalleryItem = {
+  id: string | number;
+  title: string;
+  subtitle?: string;
+  imageUrl: string;
+  tags?: string[];
+  likes?: number;
+  views?: number;
 };
 
 async function getCarPhotos(): Promise<GalleryItem[]> {
@@ -81,7 +92,7 @@ export default async function CarsPage() {
         </p>
       </header>
 
-      <section className="space-y-4">
+      <section className="mt-6 space-y-4">
         <div className="flex items-baseline justify-between">
           <h2 className="section-title">Garage</h2>
           <p className="section-subtitle">
@@ -89,7 +100,67 @@ export default async function CarsPage() {
           </p>
         </div>
 
-        <GalleryGrid items={items} />
+        {/* TILE GRID (3 across on desktop) */}
+        <div className="mt-2 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {items.map((item) => (
+            <article
+              key={item.id}
+              className="group flex flex-col overflow-hidden rounded-xl bg-slate-950/90 text-xs shadow-sm ring-1 ring-slate-800/80 transition hover:bg-slate-900/90 hover:ring-sky-500/70"
+            >
+              <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-900">
+                <Image
+                  src={item.imageUrl}
+                  alt={item.title}
+                  fill
+                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                  className="object-cover"
+                />
+              </div>
+
+              <div className="flex flex-1 flex-col gap-2 px-3 py-3">
+                <h3 className="text-sm font-semibold text-slate-50 line-clamp-2">
+                  {item.title}
+                </h3>
+
+                {item.subtitle && (
+                  <p className="text-[11px] text-slate-400 line-clamp-2">
+                    {item.subtitle}
+                  </p>
+                )}
+
+                <div className="mt-1 flex items-end justify-between gap-3">
+                  <div className="text-[10px] uppercase tracking-wide text-slate-500 line-clamp-1">
+                    {item.tags && item.tags.length > 0 ? (
+                      <span>
+                        {item.tags
+                          .map((tag) => tag.trim())
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </span>
+                    ) : (
+                      <span className="opacity-50">No tags yet</span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-3 text-slate-300">
+                    <div className="text-sm leading-none">
+                      <LikeButton
+                        photoId={String(item.id)}
+                        initialLikes={item.likes ?? 0}
+                      />
+                    </div>
+                    <div className="inline-flex items-center gap-1 text-[11px] leading-none opacity-90">
+                      <span className="text-base">👁</span>
+                      <span className="font-medium tabular-nums">
+                        {item.views ?? 0}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </article>
+          ))}
+        </div>
 
         {/* bump views for all car photos on this page */}
         <PhotoViewTracker ids={items.map((item) => item.id)} />
