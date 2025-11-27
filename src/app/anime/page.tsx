@@ -1,4 +1,5 @@
 // src/app/anime/page.tsx
+import Image from "next/image";
 import { supabase } from "@/lib/supabase";
 import { AnimeLikeButton } from "@/components/AnimeLikeButton";
 import { AnimeViewTracker } from "@/components/AnimeViewTracker";
@@ -20,6 +21,7 @@ type DbAnimeRow = {
   likes: number | null;
   views: number | null;
   sort_order: number | null;
+  cover_url: string | null;
 };
 
 // Normalised shape we use in the UI
@@ -35,13 +37,14 @@ type AnimeRow = {
   likes: number;
   views: number;
   sortOrder: number;
+  coverUrl: string | null; // <- camelCase in UI
 };
 
 async function getAnime(): Promise<AnimeRow[]> {
   const { data, error } = await supabase
     .from("anime")
     .select(
-      "id, title, status, total_seasons, seasons_watched, is_favorite, tags, notes, likes, views, sort_order"
+      "id, title, status, total_seasons, seasons_watched, is_favorite, tags, notes, likes, views, sort_order, cover_url"
     );
 
   if (error || !data) {
@@ -61,6 +64,7 @@ async function getAnime(): Promise<AnimeRow[]> {
     likes: row.likes ?? 0,
     views: row.views ?? 0,
     sortOrder: row.sort_order ?? 9999,
+    coverUrl: row.cover_url ?? null,
   }));
 
   // Primary order: explicit sort_order, then title
@@ -109,14 +113,31 @@ function AnimeGrid({ rows }: { rows: AnimeRow[] }) {
       style={{
         display: "grid",
         gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
-        gap: "1rem", // ⬅ spacing between tiles (both directions)
+        gap: "1rem", // spacing between tiles (both directions) – unchanged
       }}
     >
       {rows.map((row) => (
         <div key={row.id} className="relative">
-          <article className="group flex h-40 flex-col justify-between rounded-xl bg-slate-950/90 p-3 text-xs shadow-sm ring-1 ring-slate-800/80 transition hover:bg-slate-900/90 hover:ring-sky-500/70">
+          <article className="group flex h-56 flex-col justify-between rounded-xl bg-slate-950/90 p-3 text-xs shadow-sm ring-1 ring-slate-800/80 transition hover:bg-slate-900/90 hover:ring-sky-500/70">
+            {/* Cover image area */}
+            <div className="mb-2 h-20 w-full overflow-hidden rounded-md bg-slate-900">
+              {row.coverUrl ? (
+                <Image
+                  src={row.coverUrl}
+                  alt={row.title}
+                  width={300}
+                  height={180}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center text-[10px] text-slate-500">
+                  No image yet
+                </div>
+              )}
+            </div>
+
             {/* Top content */}
-            <div className="space-y-1">
+            <div className="flex-1 space-y-1">
               <div className="flex items-center gap-1.5">
                 {row.favorite && (
                   <span
@@ -126,7 +147,7 @@ function AnimeGrid({ rows }: { rows: AnimeRow[] }) {
                     ★
                   </span>
                 )}
-                <h3 className="truncate text-sm font-semibold text-slate-50">
+                <h3 className="text-sm font-semibold text-slate-50 leading-tight line-clamp-2">
                   {row.title}
                 </h3>
               </div>

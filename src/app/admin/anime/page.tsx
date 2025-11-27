@@ -1,8 +1,9 @@
-// src/app/admin/anime/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+
+const BUCKET_NAME = "anime-covers"; // make sure this bucket exists in Supabase
 
 // DB row shape
 type DbAnimeRow = {
@@ -17,6 +18,7 @@ type DbAnimeRow = {
   likes: number | null;
   views: number | null;
   sort_order: number | null;
+  cover_url: string | null;
 };
 
 // UI row shape
@@ -32,6 +34,7 @@ type AnimeRow = {
   likes: number;
   views: number;
   sortOrder: number;
+  coverUrl: string | null;
 };
 
 const STATUS_OPTIONS = [
@@ -55,6 +58,7 @@ function normaliseRow(row: DbAnimeRow): AnimeRow {
     likes: row.likes ?? 0,
     views: row.views ?? 0,
     sortOrder: row.sort_order ?? 0,
+    coverUrl: row.cover_url ?? null,
   };
 }
 
@@ -64,6 +68,7 @@ export default function AdminAnimePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [adding, setAdding] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   const current = rows[selectedIndex] ?? null;
 
@@ -74,7 +79,7 @@ export default function AdminAnimePage() {
       const { data, error } = await supabase
         .from("anime")
         .select(
-          "id, title, status, total_seasons, seasons_watched, is_favorite, tags, notes, likes, views, sort_order"
+          "id, title, status, total_seasons, seasons_watched, is_favorite, tags, notes, likes, views, sort_order, cover_url"
         );
 
       if (error) {
@@ -123,6 +128,7 @@ export default function AdminAnimePage() {
       tags: current.tags,
       notes: current.notes,
       sort_order: current.sortOrder,
+      cover_url: current.coverUrl,
     };
 
     const { error } = await supabase
@@ -157,9 +163,10 @@ export default function AdminAnimePage() {
           tags: [],
           notes: "",
           sort_order: maxSort + 1,
+          cover_url: null,
         })
         .select(
-          "id, title, status, total_seasons, seasons_watched, is_favorite, tags, notes, likes, views, sort_order"
+          "id, title, status, total_seasons, seasons_watched, is_favorite, tags, notes, likes, views, sort_order, cover_url"
         )
         .single();
 
@@ -193,6 +200,57 @@ export default function AdminAnimePage() {
     setSelectedIndex((idx) =>
       idx < rows.length - 1 ? idx + 1 : idx
     );
+  };
+
+  // Upload cover image to Supabase Storage and save URL to this row
+  const handleCoverUpload = async (file: File) => {
+    if (!current) return;
+
+    try {
+      setUploading(true);
+
+      const ext = file.name.split(".").pop() || "jpg";
+      const path = `${current.id}/cover.${ext}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from(BUCKET_NAME)
+        .upload(path, file, {
+          upsert: true,
+          cacheControl: "3600",
+          contentType: file.type,
+        });
+
+      if (uploadError) {
+        console.error("[admin/anime] upload error", uploadError);
+        alert("Failed to upload image.");
+        setUploading(false);
+        return;
+      }
+
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from(BUCKET_NAME).getPublicUrl(path);
+
+      // Update in DB
+      const { error: updateError } = await supabase
+        .from("anime")
+        .update({ cover_url: publicUrl })
+        .eq("id", current.id);
+
+      if (updateError) {
+        console.error("[admin/anime] cover_url update error", updateError);
+        alert("Uploaded, but failed to save URL.");
+      }
+
+      // Update local state
+      setRows((prev) =>
+        prev.map((row, idx) =>
+          idx === selectedIndex ? { ...row, coverUrl: publicUrl } : row
+        )
+      );
+    } finally {
+      setUploading(false);
+    }
   };
 
   return (
@@ -382,6 +440,71 @@ export default function AdminAnimePage() {
                   }
                   className="mt-1 w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100"
                 />
+              </div>
+            </div>
+
+            {/* Cover image URL + upload/preview */}
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <label className="block text-slate-300">
+                  Cover image URL
+                </label>
+                <input
+                  type="text"
+                  value={current.coverUrl ?? ""}
+                  onChange={(e) =>
+                    handleFieldChange(
+                      "coverUrl",
+                      e.target.value.trim() || null
+                    )
+                  }
+                  placeholder="https://… or /anime-covers/black-bullet.jpg"
+                  className="mt-1 w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100"
+                />
+                <p className="mt-1 text-[11px] text-slate-500">
+                  You can paste a URL directly or upload an image using
+                  the field on the right.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-slate-300">
+                  Upload cover image
+                </label>
+                <div className="mt-1 flex items-start gap-3">
+                  <div className="h-20 w-32 overflow-hidden rounded-md border border-slate-700 bg-slate-900">
+                    {current.coverUrl ? (
+                      <img
+                        src={current.coverUrl}
+                        alt={current.title}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-[10px] text-slate-500">
+                        No image
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 space-y-1">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          void handleCoverUpload(file);
+                          e.target.value = "";
+                        }
+                      }}
+                      className="block w-full text-xs text-slate-100 file:mr-2 file:rounded-md file:border-0 file:bg-slate-700 file:px-2 file:py-1 file:text-xs file:font-semibold file:text-slate-50 hover:file:bg-slate-600"
+                    />
+                    <p className="text-[11px] text-slate-500">
+                      {uploading
+                        ? "Uploading…"
+                        : "JPEG/PNG is fine. Uploading will auto-save the URL."}
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
 
