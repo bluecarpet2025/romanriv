@@ -15,7 +15,7 @@ const navItems = [
   { href: "/cars", label: "Cars" },
   { href: "/anime", label: "Anime" },
   { href: "/business", label: "Projects" },
-  { href: "/discuss", label: "Discuss" },
+  //{ href: "/discuss", label: "Discuss" },
 ];
 
 export default function RootLayout({
