@@ -56,7 +56,7 @@ async function getFoodPhotos(): Promise<FoodItem[]> {
     )
     .eq("category", "food")
     .order("created_at", { ascending: false })
-    .limit(500);
+    //.limit(500);
 
   if (error || !data || data.length === 0) return fallback;
 
