@@ -55,8 +55,8 @@ async function getCarPhotos(): Promise<CarItem[]> {
       "id, title, description, image_path, tags, category, created_at, likes, views"
     )
     .eq("category", "car")
-    .order("created_at", { ascending: false })
-    .limit(50);
+    .order("image_path", { ascending: false })
+    //.limit(50);
 
   if (error || !data || data.length === 0) return fallback;
 
