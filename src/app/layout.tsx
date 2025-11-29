@@ -1,4 +1,4 @@
-// src/app/layout.tsx
+// src/app/layout.tsx 
 import type { Metadata } from "next";
 import "./globals.css";
 import Link from "next/link";
@@ -6,10 +6,18 @@ import Image from "next/image";
 
 export const metadata: Metadata = {
   title: "romanriv.com",
-  description: "Roman's personal playground.",
-   icons: {
-    icon: "/icon.png",
-    },
+  description: "Roman Rivera's personal playground.",
+  icons: {
+    icon: "/icon-32.png",               // browser tab
+    shortcut: "/favicon.ico",           // legacy fallback
+    apple: "/apple-touch-icon.png",     // iPhone/iPad home screen
+    other: [
+      {
+        rel: "mask-icon",
+        url: "/maskable-icon-512.png",  // Android / PWA maskable icon
+      },
+    ],
+  },
 };
 
 const navItems = [
@@ -41,7 +49,7 @@ export default function RootLayout({
                 }}
               >
                 <Image
-                  src="/rr-logo.png"   // <— updated here
+                  src="/rr-logo.png"   // <— your logo
                   alt="RR Logo"
                   fill
                   className="rounded-full"
