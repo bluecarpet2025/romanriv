@@ -6,9 +6,9 @@ import Image from "next/image";
 
 export const metadata: Metadata = {
   title: "romanriv.com",
-  description: "Roman Rivera's personal playground.",
+  description: "Roman's personal playground.",
    icons: {
-    icon: "/icon.ico",
+    icon: "/icon.png",
     },
 };
 
