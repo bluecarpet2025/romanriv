@@ -1,8 +1,8 @@
 // src/app/admin/photos/page.tsx
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
+import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 
 const CATEGORIES = [
@@ -13,6 +13,12 @@ const CATEGORIES = [
 ];
 
 type UploadStatus = "idle" | "uploading" | "done" | "error";
+
+const linkBase =
+  "inline-flex items-center justify-center rounded-md border border-slate-800 bg-slate-950/60 px-3 py-1.5 text-sm font-semibold text-slate-200 transition hover:bg-slate-900/70 hover:text-white";
+
+const linkPrimary =
+  "inline-flex items-center justify-center rounded-md bg-sky-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-sky-500";
 
 export default function AdminPhotosPage() {
   const [category, setCategory] = useState<string>("food");
@@ -36,8 +42,6 @@ export default function AdminPhotosPage() {
 
     setStatus("uploading");
     const messages: string[] = [];
-
-    // iterate over a real array, not FileList
     const fileArray = Array.from(files);
 
     for (const file of fileArray) {
@@ -45,7 +49,6 @@ export default function AdminPhotosPage() {
       const ext = originalName.split(".").pop() || "jpg";
       const baseName = originalName.replace(/\.[^/.]+$/, "");
 
-      // e.g. "food/1732320000000-salmon-bowl.jpg"
       const timestamp = Date.now();
       const safeBase = baseName
         .toLowerCase()
@@ -54,12 +57,11 @@ export default function AdminPhotosPage() {
       const path = `${category}/${timestamp}-${safeBase}.${ext}`;
 
       messages.push(`Uploading ${originalName} → ${path} ...`);
+      setLog([...messages]);
 
       try {
-        // 1) Upload to storage
-        const { data: storageData, error: storageError } = await supabase.storage
-          .from("media")
-          .upload(path, file);
+        const { data: storageData, error: storageError } =
+          await supabase.storage.from("media").upload(path, file);
 
         if (storageError) {
           messages.push(
@@ -71,13 +73,12 @@ export default function AdminPhotosPage() {
 
         const imagePath = storageData?.path ?? path;
 
-        // 2) Insert row into photos
         const { error: insertError } = await supabase.from("photos").insert({
           category,
           title: baseName,
           description: "",
           image_path: imagePath,
-          tags: [], // we’ll fill these later or with n8n
+          tags: [],
         });
 
         if (insertError) {
@@ -93,62 +94,47 @@ export default function AdminPhotosPage() {
         );
       }
 
-      // update log as we go
       setLog([...messages]);
     }
 
-    setLog(messages);
     setStatus("done");
   };
 
   return (
     <div className="page-shell-wide">
       <header className="card">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h1 className="text-xl font-bold tracking-tight text-slate-50">
-              Photo uploader
-            </h1>
+        <h1 className="text-xl font-bold tracking-tight text-slate-50">
+          Photo uploader
+        </h1>
+        <p className="mt-3 text-sm text-slate-300">
+          Bulk upload food and car photos into the Supabase{" "}
+          <code className="rounded bg-slate-900/60 px-1 py-0.5 text-xs">
+            photos
+          </code>{" "}
+          table and{" "}
+          <code className="rounded bg-slate-900/60 px-1 py-0.5 text-xs">
+            media
+          </code>{" "}
+          storage bucket.
+        </p>
+        <p className="mt-2 text-xs text-slate-400">
+          Later we can add automatic titles/tags via n8n. For now, this saves the
+          filename as the title and leaves tags empty.
+        </p>
 
-            <p className="mt-3 text-sm text-slate-300">
-              Bulk upload food and car photos into the Supabase{" "}
-              <code className="rounded bg-slate-900/60 px-1 py-0.5 text-xs">
-                photos
-              </code>{" "}
-              table and{" "}
-              <code className="rounded bg-slate-900/60 px-1 py-0.5 text-xs">
-                media
-              </code>{" "}
-              storage bucket.
-            </p>
-
-            <p className="mt-2 text-xs text-slate-400">
-              Later we can add automatic titles/tags via n8n. For now, this just
-              saves the filename as the title and leaves tags empty.
-            </p>
-          </div>
-
-          {/* Quick admin links */}
-          <div className="flex flex-wrap gap-2">
-            <Link
-              href="/admin"
-              className="inline-flex items-center rounded-md border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs font-semibold text-slate-100 hover:border-sky-600"
-            >
-              Admin home
-            </Link>
-            <Link
-              href="/admin/photos/manage"
-              className="inline-flex items-center rounded-md bg-sky-600 px-3 py-2 text-xs font-semibold text-white hover:bg-sky-500"
-            >
-              Manage photos
-            </Link>
-          </div>
+        {/* Quick links (uniform button style) */}
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Link className={linkBase} href="/admin">
+            Admin home
+          </Link>
+          <Link className={linkPrimary} href="/admin/photos/manage">
+            Manage photos
+          </Link>
         </div>
       </header>
 
       <section className="card mt-4 space-y-4">
         <form onSubmit={handleUpload} className="space-y-4">
-          {/* Category selector */}
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <label className="text-sm font-medium text-slate-200">
               Category
@@ -171,7 +157,6 @@ export default function AdminPhotosPage() {
             </p>
           </div>
 
-          {/* File input */}
           <div>
             <label className="block text-sm font-medium text-slate-200">
               Photos
@@ -183,6 +168,7 @@ export default function AdminPhotosPage() {
                 className="mt-2 block w-full text-sm text-slate-100 file:mr-4 file:rounded-md file:border-0 file:bg-sky-600/90 file:px-3 file:py-1 file:text-sm file:font-semibold file:text-white hover:file:bg-sky-500"
               />
             </label>
+
             {files && files.length > 0 && (
               <p className="mt-1 text-xs text-slate-400">
                 {files.length} file{files.length === 1 ? "" : "s"} selected
@@ -190,7 +176,6 @@ export default function AdminPhotosPage() {
             )}
           </div>
 
-          {/* Submit button */}
           <button
             type="submit"
             disabled={status === "uploading"}
@@ -200,7 +185,6 @@ export default function AdminPhotosPage() {
           </button>
         </form>
 
-        {/* Upload log */}
         {log.length > 0 && (
           <div className="mt-4 rounded-md bg-slate-900/80 p-3 text-xs text-slate-200">
             <h2 className="mb-2 font-semibold text-slate-100">Upload log</h2>
