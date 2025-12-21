@@ -2,6 +2,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 
 const CATEGORIES = [
@@ -19,9 +20,7 @@ export default function AdminPhotosPage() {
   const [status, setStatus] = useState<UploadStatus>("idle");
   const [log, setLog] = useState<string[]>([]);
 
-  const handleFileChange = (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setFiles(event.target.files);
     setLog([]);
     setStatus("idle");
@@ -58,28 +57,28 @@ export default function AdminPhotosPage() {
 
       try {
         // 1) Upload to storage
-        const { data: storageData, error: storageError } =
-          await supabase.storage.from("media").upload(path, file);
+        const { data: storageData, error: storageError } = await supabase.storage
+          .from("media")
+          .upload(path, file);
 
         if (storageError) {
           messages.push(
             `❌ ${originalName}: storage upload failed – ${storageError.message}`
           );
+          setLog([...messages]);
           continue;
         }
 
         const imagePath = storageData?.path ?? path;
 
         // 2) Insert row into photos
-        const { error: insertError } = await supabase
-          .from("photos")
-          .insert({
-            category,
-            title: baseName,
-            description: "",
-            image_path: imagePath,
-            tags: [], // we’ll fill these later or with n8n
-          });
+        const { error: insertError } = await supabase.from("photos").insert({
+          category,
+          title: baseName,
+          description: "",
+          image_path: imagePath,
+          tags: [], // we’ll fill these later or with n8n
+        });
 
         if (insertError) {
           messages.push(
@@ -90,13 +89,11 @@ export default function AdminPhotosPage() {
         }
       } catch (err: any) {
         messages.push(
-          `❌ ${originalName}: unexpected error – ${
-            err?.message ?? String(err)
-          }`
+          `❌ ${originalName}: unexpected error – ${err?.message ?? String(err)}`
         );
       }
 
-      // small delay so logs feel live (optional)
+      // update log as we go
       setLog([...messages]);
     }
 
@@ -107,25 +104,46 @@ export default function AdminPhotosPage() {
   return (
     <div className="page-shell-wide">
       <header className="card">
-        <h1 className="text-xl font-bold tracking-tight text-slate-50">
-          Photo uploader
-        </h1>
-        <p className="mt-3 text-sm text-slate-300">
-          Bulk upload food and car photos into the Supabase{" "}
-          <code className="rounded bg-slate-900/60 px-1 py-0.5 text-xs">
-            photos
-          </code>{" "}
-          table and{" "}
-          <code className="rounded bg-slate-900/60 px-1 py-0.5 text-xs">
-            media
-          </code>{" "}
-          storage bucket. This page isn&apos;t linked in the navigation – it&apos;s
-          just for you.
-        </p>
-        <p className="mt-2 text-xs text-slate-400">
-          Later we can add automatic titles/tags via n8n. For now, this just
-          saves the filename as the title and leaves tags empty.
-        </p>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h1 className="text-xl font-bold tracking-tight text-slate-50">
+              Photo uploader
+            </h1>
+
+            <p className="mt-3 text-sm text-slate-300">
+              Bulk upload food and car photos into the Supabase{" "}
+              <code className="rounded bg-slate-900/60 px-1 py-0.5 text-xs">
+                photos
+              </code>{" "}
+              table and{" "}
+              <code className="rounded bg-slate-900/60 px-1 py-0.5 text-xs">
+                media
+              </code>{" "}
+              storage bucket.
+            </p>
+
+            <p className="mt-2 text-xs text-slate-400">
+              Later we can add automatic titles/tags via n8n. For now, this just
+              saves the filename as the title and leaves tags empty.
+            </p>
+          </div>
+
+          {/* Quick admin links */}
+          <div className="flex flex-wrap gap-2">
+            <Link
+              href="/admin"
+              className="inline-flex items-center rounded-md border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs font-semibold text-slate-100 hover:border-sky-600"
+            >
+              Admin home
+            </Link>
+            <Link
+              href="/admin/photos/manage"
+              className="inline-flex items-center rounded-md bg-sky-600 px-3 py-2 text-xs font-semibold text-white hover:bg-sky-500"
+            >
+              Manage photos
+            </Link>
+          </div>
+        </div>
       </header>
 
       <section className="card mt-4 space-y-4">
@@ -167,8 +185,7 @@ export default function AdminPhotosPage() {
             </label>
             {files && files.length > 0 && (
               <p className="mt-1 text-xs text-slate-400">
-                {files.length} file
-                {files.length === 1 ? "" : "s"} selected
+                {files.length} file{files.length === 1 ? "" : "s"} selected
               </p>
             )}
           </div>

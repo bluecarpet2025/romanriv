@@ -1,20 +1,20 @@
-// src/app/layout.tsx 
 import type { Metadata } from "next";
 import "./globals.css";
 import Link from "next/link";
 import Image from "next/image";
+import { createSupabaseServer } from "@/lib/supabaseAuth";
 
 export const metadata: Metadata = {
   title: "romanriv.com",
   description: "Roman Rivera's personal playground.",
   icons: {
-    icon: "/icon-32.png",               // browser tab
-    shortcut: "/favicon.ico",           // legacy fallback
-    apple: "/apple-touch-icon.png",     // iPhone/iPad home screen
+    icon: "/icon-32.png",
+    shortcut: "/favicon.ico",
+    apple: "/apple-touch-icon.png",
     other: [
       {
         rel: "mask-icon",
-        url: "/maskable-icon-512.png",  // Android / PWA maskable icon
+        url: "/maskable-icon-512.png",
       },
     ],
   },
@@ -26,14 +26,21 @@ const navItems = [
   { href: "/cars", label: "Cars" },
   { href: "/anime", label: "Anime" },
   { href: "/business", label: "Projects" },
-  //{ href: "/discuss", label: "Discuss" },
 ];
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // Server-side auth check (createSupabaseServer returns a Promise in your project)
+  const supabase = await createSupabaseServer();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  const isAdmin = Boolean(session);
+
   return (
     <html lang="en">
       <body>
@@ -49,7 +56,7 @@ export default function RootLayout({
                 }}
               >
                 <Image
-                  src="/rr-logo.png"   // <— your logo
+                  src="/rr-logo.png"
                   alt="RR Logo"
                   fill
                   className="rounded-full"
@@ -72,6 +79,18 @@ export default function RootLayout({
                   <Link href={item.href}>{item.label}</Link>
                 </li>
               ))}
+
+              {/* Admin link – visible ONLY when logged in */}
+              {isAdmin && (
+                <li>
+                  <Link
+                    href="/admin"
+                    className="font-semibold text-sky-400 hover:text-sky-300"
+                  >
+                    Admin
+                  </Link>
+                </li>
+              )}
             </ul>
           </nav>
         </header>
