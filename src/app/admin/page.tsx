@@ -5,30 +5,31 @@ export const metadata = {
   title: "Admin | romanriv.com",
 };
 
-const linkBase =
-  "inline-flex items-center justify-center rounded-md border border-slate-800 bg-slate-950/60 px-3 py-1.5 text-sm font-semibold text-slate-200 transition hover:bg-slate-900/70 hover:text-white";
-
-const linkPrimary =
-  "inline-flex items-center justify-center rounded-md bg-sky-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-sky-500";
+const adminActionClass =
+  "inline-flex items-center rounded-md border border-slate-700 bg-slate-900/60 px-3 py-1.5 text-sm font-medium text-sky-400 hover:bg-slate-900 hover:text-sky-300 transition";
 
 export default function AdminHomePage() {
   return (
     <div className="page-shell-wide">
       <header className="card">
-        <h1 className="text-xl font-bold tracking-tight text-slate-50">Admin</h1>
+        <h1 className="text-xl font-bold tracking-tight text-slate-50">
+          Admin
+        </h1>
         <p className="mt-3 text-sm text-slate-300">
           Private area for managing site content.
         </p>
 
-        {/* Quick links */}
-        <div className="mt-4 flex flex-wrap gap-2">
-          <Link className={linkPrimary} href="/admin/photos">
+        {/* Admin actions */}
+        <div className="mt-4 flex flex-wrap gap-3">
+          <Link href="/admin/photos" className={adminActionClass}>
             Photo uploader
           </Link>
-          <Link className={linkBase} href="/admin/photos/manage">
+
+          <Link href="/admin/photos/manage" className={adminActionClass}>
             Manage photos
           </Link>
-          <Link className={linkBase} href="/admin/anime">
+
+          <Link href="/admin/anime" className={adminActionClass}>
             Anime admin
           </Link>
         </div>
