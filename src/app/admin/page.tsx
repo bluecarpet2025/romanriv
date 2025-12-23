@@ -6,7 +6,7 @@ export const metadata = {
 };
 
 const adminActionClass =
-  "inline-flex items-center rounded-md border border-slate-700 bg-slate-900/60 px-3 py-1.5 text-sm font-medium text-sky-400 hover:bg-slate-900 hover:text-sky-300 transition";
+  "inline-flex items-center rounded-md border border-slate-700 bg-slate-900/60 px-3 py-1.5 text-sm font-medium text-sky-400 hover:bg-slate-900 hover:text-sky-300 transition mr-2";
 
 export default function AdminHomePage() {
   return (
@@ -20,7 +20,7 @@ export default function AdminHomePage() {
         </p>
 
         {/* Admin actions */}
-        <div className="mt-4 flex flex-wrap gap-3">
+        <div className="mt-4">
           <Link href="/admin/photos" className={adminActionClass}>
             Photo uploader
           </Link>
