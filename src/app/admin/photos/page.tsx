@@ -1,9 +1,8 @@
-// src/app/admin/photos/page.tsx
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { useMemo, useState } from "react";
+import { createSupabaseBrowser } from "@/lib/supabaseAuth";
 
 const CATEGORIES = [
   { value: "food", label: "Food" },
@@ -14,10 +13,9 @@ const CATEGORIES = [
 
 type UploadStatus = "idle" | "uploading" | "done" | "error";
 
-const adminActionClass =
-  "inline-flex items-center rounded-md border border-slate-700 bg-slate-900/60 px-3 py-1.5 text-sm font-medium text-sky-400 hover:bg-slate-900 hover:text-sky-300 transition";
-
 export default function AdminPhotosPage() {
+  const supabase = useMemo(() => createSupabaseBrowser(), []);
+
   const [category, setCategory] = useState<string>("food");
   const [files, setFiles] = useState<FileList | null>(null);
   const [status, setStatus] = useState<UploadStatus>("idle");
@@ -57,11 +55,28 @@ export default function AdminPhotosPage() {
       const path = `${category}/${timestamp}-${safeBase}.${ext}`;
 
       messages.push(`Uploading ${originalName} → ${path} ...`);
+      setLog([...messages]);
 
       try {
+        // 0) Confirm auth session (so RLS policies match authenticated user)
+        const {
+          data: { session },
+          error: sessionError,
+        } = await supabase.auth.getSession();
+
+        if (sessionError || !session) {
+          messages.push(
+            `❌ ${originalName}: you are not signed in (no session). Please sign in again.`
+          );
+          setLog([...messages]);
+          setStatus("error");
+          break;
+        }
+
         // 1) Upload to storage
-        const { data: storageData, error: storageError } =
-          await supabase.storage.from("media").upload(path, file);
+        const { data: storageData, error: storageError } = await supabase.storage
+          .from("media")
+          .upload(path, file);
 
         if (storageError) {
           messages.push(
@@ -89,18 +104,19 @@ export default function AdminPhotosPage() {
         } else {
           messages.push(`✅ ${originalName}: uploaded and saved`);
         }
+
+        setLog([...messages]);
       } catch (err: any) {
         messages.push(
           `❌ ${originalName}: unexpected error – ${err?.message ?? String(err)}`
         );
+        setLog([...messages]);
       }
-
-      // keep logs feeling live
-      setLog([...messages]);
     }
 
     setLog(messages);
-    setStatus("done");
+    if (messages.some((m) => m.startsWith("❌"))) setStatus("error");
+    else setStatus("done");
   };
 
   return (
@@ -109,8 +125,9 @@ export default function AdminPhotosPage() {
         <h1 className="text-xl font-bold tracking-tight text-slate-50">
           Photo uploader
         </h1>
+
         <p className="mt-3 text-sm text-slate-300">
-          Bulk upload food and car photos into the Supabase{" "}
+          Bulk upload photos into the Supabase{" "}
           <code className="rounded bg-slate-900/60 px-1 py-0.5 text-xs">
             photos
           </code>{" "}
@@ -118,21 +135,25 @@ export default function AdminPhotosPage() {
           <code className="rounded bg-slate-900/60 px-1 py-0.5 text-xs">
             media
           </code>{" "}
-          storage bucket. This page isn&apos;t linked in the navigation – it&apos;s
-          just for you.
-        </p>
-        <p className="mt-2 text-xs text-slate-400">
-          Later we can add automatic titles/tags via n8n. For now, this just
-          saves the filename as the title and leaves tags empty.
+          storage bucket.
         </p>
 
-        {/* Admin actions */}
-        <div className="mt-4 flex flex-wrap gap-3">
-          <Link href="/admin" className={adminActionClass}>
+        <p className="mt-2 text-xs text-slate-400">
+          Later we can add automatic titles/tags via n8n. For now, this saves the
+          filename as the title and leaves tags empty.
+        </p>
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Link
+            href="/admin"
+            className="inline-flex items-center rounded-md border border-slate-800 bg-slate-950/60 px-3 py-1.5 text-sm font-semibold text-sky-300 hover:bg-slate-900/60 hover:text-sky-200"
+          >
             Admin home
           </Link>
-
-          <Link href="/admin/photos/manage" className={adminActionClass}>
+          <Link
+            href="/admin/photos/manage"
+            className="inline-flex items-center rounded-md border border-slate-800 bg-slate-950/60 px-3 py-1.5 text-sm font-semibold text-sky-300 hover:bg-slate-900/60 hover:text-sky-200"
+          >
             Manage photos
           </Link>
         </div>
