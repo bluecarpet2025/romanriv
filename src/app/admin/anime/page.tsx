@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { useEffect, useMemo, useState } from "react";
+import { createSupabaseBrowser } from "@/lib/supabaseAuth";
 
 const BUCKET_NAME = "anime-covers"; // make sure this bucket exists in Supabase
 
@@ -37,13 +37,7 @@ type AnimeRow = {
   coverUrl: string | null;
 };
 
-const STATUS_OPTIONS = [
-  "watching",
-  "watched",
-  "planned",
-  "on-hold",
-  "dropped",
-];
+const STATUS_OPTIONS = ["watching", "watched", "planned", "on-hold", "dropped"];
 
 function normaliseRow(row: DbAnimeRow): AnimeRow {
   return {
@@ -63,6 +57,8 @@ function normaliseRow(row: DbAnimeRow): AnimeRow {
 }
 
 export default function AdminAnimePage() {
+  const supabase = useMemo(() => createSupabaseBrowser(), []);
+
   const [rows, setRows] = useState<AnimeRow[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -76,6 +72,12 @@ export default function AdminAnimePage() {
   useEffect(() => {
     const load = async () => {
       setLoading(true);
+
+      // Helpful debug (remove later if you want)
+      const { data: sessionData, error: sessionErr } = await supabase.auth.getSession();
+      if (sessionErr) console.warn("[admin/anime] getSession error", sessionErr);
+      console.log("[admin/anime] session user?", !!sessionData?.session?.user);
+
       const { data, error } = await supabase
         .from("anime")
         .select(
@@ -84,15 +86,13 @@ export default function AdminAnimePage() {
 
       if (error) {
         console.error("[admin/anime] load error", error);
+        alert(`Failed to load anime: ${error.message}`);
         setRows([]);
         setLoading(false);
         return;
       }
 
-      const mapped = (data ?? []).map((r) =>
-        normaliseRow(r as DbAnimeRow)
-      );
-
+      const mapped = (data ?? []).map((r) => normaliseRow(r as DbAnimeRow));
       mapped.sort((a, b) => a.sortOrder - b.sortOrder);
 
       setRows(mapped);
@@ -101,17 +101,10 @@ export default function AdminAnimePage() {
     };
 
     load();
-  }, []);
+  }, [supabase]);
 
-  const handleFieldChange = <K extends keyof AnimeRow>(
-    field: K,
-    value: AnimeRow[K]
-  ) => {
-    setRows((prev) =>
-      prev.map((row, idx) =>
-        idx === selectedIndex ? { ...row, [field]: value } : row
-      )
-    );
+  const handleFieldChange = <K extends keyof AnimeRow>(field: K, value: AnimeRow[K]) => {
+    setRows((prev) => prev.map((row, idx) => (idx === selectedIndex ? { ...row, [field]: value } : row)));
   };
 
   const handleSave = async () => {
@@ -131,123 +124,93 @@ export default function AdminAnimePage() {
       cover_url: current.coverUrl,
     };
 
-    const { error } = await supabase
-      .from("anime")
-      .update(payload)
-      .eq("id", current.id);
+    const { error } = await supabase.from("anime").update(payload).eq("id", current.id);
 
     if (error) {
       console.error("[admin/anime] save error", error);
-      alert("Failed to save changes.");
+      alert(`Failed to save changes: ${error.message}`);
     }
 
     setSaving(false);
   };
 
-  const handleAddNew = async () => (
-    setAdding(true),
-    (async () => {
-      const maxSort =
-        rows.length > 0
-          ? Math.max(...rows.map((r) => r.sortOrder))
-          : 0;
+  const handleAddNew = async () => {
+    setAdding(true);
 
-      const { data, error } = await supabase
-        .from("anime")
-        .insert({
-          title: "New anime",
-          status: "planned",
-          total_seasons: 1,
-          seasons_watched: 0,
-          is_favorite: false,
-          tags: [],
-          notes: "",
-          sort_order: maxSort + 1,
-          cover_url: null,
-        })
-        .select(
-          "id, title, status, total_seasons, seasons_watched, is_favorite, tags, notes, likes, views, sort_order, cover_url"
-        )
-        .single();
+    const maxSort = rows.length > 0 ? Math.max(...rows.map((r) => r.sortOrder)) : 0;
 
-      if (error || !data) {
-        console.error("[admin/anime] add error", error);
-        alert("Failed to add anime.");
-        setAdding(false);
-        return;
-      }
+    const { data, error } = await supabase
+      .from("anime")
+      .insert({
+        title: "New anime",
+        status: "planned",
+        total_seasons: 1,
+        seasons_watched: 0,
+        is_favorite: false,
+        tags: [],
+        notes: "",
+        sort_order: maxSort + 1,
+        cover_url: null,
+      })
+      .select("id, title, status, total_seasons, seasons_watched, is_favorite, tags, notes, likes, views, sort_order, cover_url")
+      .single();
 
-      const newRow = normaliseRow(data as DbAnimeRow);
-
-      setRows((prev) => {
-        const next = [...prev, newRow].sort(
-          (a, b) => a.sortOrder - b.sortOrder
-        );
-        const newIndex = next.findIndex((r) => r.id === newRow.id);
-        setSelectedIndex(newIndex === -1 ? 0 : newIndex);
-        return next;
-      });
-
+    if (error || !data) {
+      console.error("[admin/anime] add error", error);
+      alert(`Failed to add anime: ${error?.message ?? "Unknown error"}`);
       setAdding(false);
-    })()
-  );
+      return;
+    }
 
-  const goPrev = () => {
-    setSelectedIndex((idx) => (idx > 0 ? idx - 1 : idx));
+    const newRow = normaliseRow(data as DbAnimeRow);
+
+    setRows((prev) => {
+      const next = [...prev, newRow].sort((a, b) => a.sortOrder - b.sortOrder);
+      const newIndex = next.findIndex((r) => r.id === newRow.id);
+      setSelectedIndex(newIndex === -1 ? 0 : newIndex);
+      return next;
+    });
+
+    setAdding(false);
   };
 
-  const goNext = () => {
-    setSelectedIndex((idx) =>
-      idx < rows.length - 1 ? idx + 1 : idx
-    );
-  };
+  const goPrev = () => setSelectedIndex((idx) => (idx > 0 ? idx - 1 : idx));
+  const goNext = () => setSelectedIndex((idx) => (idx < rows.length - 1 ? idx + 1 : idx));
 
   // Upload cover image to Supabase Storage and save URL to this row
   const handleCoverUpload = async (file: File) => {
     if (!current) return;
 
-    try {
-      setUploading(true);
+    setUploading(true);
 
+    try {
       const ext = file.name.split(".").pop() || "jpg";
       const path = `${current.id}/cover.${ext}`;
 
-      const { error: uploadError } = await supabase.storage
-        .from(BUCKET_NAME)
-        .upload(path, file, {
-          upsert: true,
-          cacheControl: "3600",
-          contentType: file.type,
-        });
+      const { error: uploadError } = await supabase.storage.from(BUCKET_NAME).upload(path, file, {
+        upsert: true,
+        cacheControl: "3600",
+        contentType: file.type,
+      });
 
       if (uploadError) {
         console.error("[admin/anime] upload error", uploadError);
-        alert("Failed to upload image.");
-        setUploading(false);
+        alert(`Failed to upload image: ${uploadError.message}`);
         return;
       }
 
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from(BUCKET_NAME).getPublicUrl(path);
+      const { data: urlData } = supabase.storage.from(BUCKET_NAME).getPublicUrl(path);
+      const publicUrl = urlData.publicUrl;
 
-      // Update in DB
-      const { error: updateError } = await supabase
-        .from("anime")
-        .update({ cover_url: publicUrl })
-        .eq("id", current.id);
+      const { error: updateError } = await supabase.from("anime").update({ cover_url: publicUrl }).eq("id", current.id);
 
       if (updateError) {
         console.error("[admin/anime] cover_url update error", updateError);
-        alert("Uploaded, but failed to save URL.");
+        alert(`Uploaded, but failed to save URL: ${updateError.message}`);
+        return;
       }
 
-      // Update local state
-      setRows((prev) =>
-        prev.map((row, idx) =>
-          idx === selectedIndex ? { ...row, coverUrl: publicUrl } : row
-        )
-      );
+      setRows((prev) => prev.map((row, idx) => (idx === selectedIndex ? { ...row, coverUrl: publicUrl } : row)));
     } finally {
       setUploading(false);
     }
@@ -256,23 +219,17 @@ export default function AdminAnimePage() {
   return (
     <div className="page-shell-wide">
       <header className="card">
-        <h1 className="text-xl font-bold tracking-tight text-slate-50">
-          Anime admin
-        </h1>
+        <h1 className="text-xl font-bold tracking-tight text-slate-50">Anime admin</h1>
         <p className="mt-3 text-sm text-slate-300">
-          Manage your anime list here. This is only for you – the public page
-          under <code className="px-1">/anime</code> will render a nicer view
-          of this data.
+          Manage your anime list here. This is only for you – the public page under{" "}
+          <code className="px-1">/anime</code> will render a nicer view of this data.
         </p>
       </header>
 
       <section className="card mt-4 space-y-4">
-        {/* Header row with fixed spacing */}
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-3">
-            <h2 className="text-sm font-semibold text-slate-100">
-              Anime list
-            </h2>
+            <h2 className="text-sm font-semibold text-slate-100">Anime list</h2>
 
             {rows.length > 0 && (
               <div className="flex flex-wrap items-center gap-2 text-xs text-slate-200">
@@ -280,9 +237,7 @@ export default function AdminAnimePage() {
                 <select
                   value={current?.id ?? ""}
                   onChange={(e) => {
-                    const idx = rows.findIndex(
-                      (r) => r.id === e.target.value
-                    );
+                    const idx = rows.findIndex((r) => r.id === e.target.value);
                     if (idx !== -1) setSelectedIndex(idx);
                   }}
                   className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100"
@@ -326,20 +281,15 @@ export default function AdminAnimePage() {
         {loading ? (
           <p className="text-sm text-slate-400">Loading…</p>
         ) : !current ? (
-          <p className="text-sm text-slate-400">
-            No anime yet. Click &quot;Add anime&quot; to start.
-          </p>
+          <p className="text-sm text-slate-400">No anime yet. Click &quot;Add anime&quot; to start.</p>
         ) : (
           <div className="space-y-3 rounded-md border border-slate-800 bg-slate-950/60 p-3 text-xs sm:text-sm">
-            {/* Favorite + title + status + seasons */}
             <div className="flex flex-wrap items-center gap-3">
               <label className="flex items-center gap-1 text-slate-200">
                 <input
                   type="checkbox"
                   checked={current.favorite}
-                  onChange={(e) =>
-                    handleFieldChange("favorite", e.target.checked)
-                  }
+                  onChange={(e) => handleFieldChange("favorite", e.target.checked)}
                   className="h-4 w-4 rounded border-slate-600 bg-slate-900"
                 />
                 <span>Favorite</span>
@@ -350,9 +300,7 @@ export default function AdminAnimePage() {
                 <input
                   type="text"
                   value={current.title}
-                  onChange={(e) =>
-                    handleFieldChange("title", e.target.value)
-                  }
+                  onChange={(e) => handleFieldChange("title", e.target.value)}
                   className="mt-1 w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100"
                 />
               </div>
@@ -361,9 +309,7 @@ export default function AdminAnimePage() {
                 <label className="block text-slate-300">Status</label>
                 <select
                   value={current.status}
-                  onChange={(e) =>
-                    handleFieldChange("status", e.target.value)
-                  }
+                  onChange={(e) => handleFieldChange("status", e.target.value)}
                   className="mt-1 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100"
                 >
                   {STATUS_OPTIONS.map((s) => (
@@ -375,20 +321,13 @@ export default function AdminAnimePage() {
               </div>
 
               <div>
-                <label className="block text-slate-300">
-                  Seasons (watched / total)
-                </label>
+                <label className="block text-slate-300">Seasons (watched / total)</label>
                 <div className="mt-1 flex items-center gap-1">
                   <input
                     type="number"
                     min={0}
                     value={current.seasons_watched}
-                    onChange={(e) =>
-                      handleFieldChange(
-                        "seasons_watched",
-                        Number(e.target.value)
-                      )
-                    }
+                    onChange={(e) => handleFieldChange("seasons_watched", Number(e.target.value))}
                     className="w-14 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100"
                   />
                   <span>/</span>
@@ -396,24 +335,16 @@ export default function AdminAnimePage() {
                     type="number"
                     min={1}
                     value={current.total_seasons}
-                    onChange={(e) =>
-                      handleFieldChange(
-                        "total_seasons",
-                        Number(e.target.value)
-                      )
-                    }
+                    onChange={(e) => handleFieldChange("total_seasons", Number(e.target.value))}
                     className="w-14 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100"
                   />
                 </div>
               </div>
             </div>
 
-            {/* Tags + notes */}
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
-                <label className="block text-slate-300">
-                  Tags (comma-separated)
-                </label>
+                <label className="block text-slate-300">Tags (comma-separated)</label>
                 <input
                   type="text"
                   value={current.tags.join(", ")}
@@ -435,50 +366,33 @@ export default function AdminAnimePage() {
                 <textarea
                   rows={2}
                   value={current.notes ?? ""}
-                  onChange={(e) =>
-                    handleFieldChange("notes", e.target.value)
-                  }
+                  onChange={(e) => handleFieldChange("notes", e.target.value)}
                   className="mt-1 w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100"
                 />
               </div>
             </div>
 
-            {/* Cover image URL + upload/preview */}
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
-                <label className="block text-slate-300">
-                  Cover image URL
-                </label>
+                <label className="block text-slate-300">Cover image URL</label>
                 <input
                   type="text"
                   value={current.coverUrl ?? ""}
-                  onChange={(e) =>
-                    handleFieldChange(
-                      "coverUrl",
-                      e.target.value.trim() || null
-                    )
-                  }
-                  placeholder="https://… or /anime-covers/black-bullet.jpg"
+                  onChange={(e) => handleFieldChange("coverUrl", e.target.value.trim() || null)}
+                  placeholder="https://…"
                   className="mt-1 w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100"
                 />
                 <p className="mt-1 text-[11px] text-slate-500">
-                  You can paste a URL directly or upload an image using
-                  the field on the right.
+                  You can paste a URL directly or upload an image using the field on the right.
                 </p>
               </div>
 
               <div>
-                <label className="block text-slate-300">
-                  Upload cover image
-                </label>
+                <label className="block text-slate-300">Upload cover image</label>
                 <div className="mt-1 flex items-start gap-3">
                   <div className="h-20 w-32 overflow-hidden rounded-md border border-slate-700 bg-slate-900">
                     {current.coverUrl ? (
-                      <img
-                        src={current.coverUrl}
-                        alt={current.title}
-                        className="h-full w-full object-cover"
-                      />
+                      <img src={current.coverUrl} alt={current.title} className="h-full w-full object-cover" />
                     ) : (
                       <div className="flex h-full w-full items-center justify-center text-[10px] text-slate-500">
                         No image
@@ -499,20 +413,16 @@ export default function AdminAnimePage() {
                       className="block w-full text-xs text-slate-100 file:mr-2 file:rounded-md file:border-0 file:bg-slate-700 file:px-2 file:py-1 file:text-xs file:font-semibold file:text-slate-50 hover:file:bg-slate-600"
                     />
                     <p className="text-[11px] text-slate-500">
-                      {uploading
-                        ? "Uploading…"
-                        : "JPEG/PNG is fine. Uploading will auto-save the URL."}
+                      {uploading ? "Uploading…" : "JPEG/PNG is fine. Uploading will auto-save the URL."}
                     </p>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Position + likes/views + save */}
             <div className="mt-1 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
               <span>
-                Position: {current.sortOrder} · Likes: {current.likes} ·
-                Views: {current.views}
+                Position: {current.sortOrder} · Likes: {current.likes} · Views: {current.views}
               </span>
               <button
                 type="button"
