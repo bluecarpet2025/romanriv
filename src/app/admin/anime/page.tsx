@@ -57,6 +57,7 @@ function normaliseRow(row: DbAnimeRow): AnimeRow {
 }
 
 export default function AdminAnimePage() {
+  // IMPORTANT: use the authenticated browser client (cookie/session aware)
   const supabase = useMemo(() => createSupabaseBrowser(), []);
 
   const [rows, setRows] = useState<AnimeRow[]>([]);
@@ -73,10 +74,14 @@ export default function AdminAnimePage() {
     const load = async () => {
       setLoading(true);
 
-      // Helpful debug (remove later if you want)
-      const { data: sessionData, error: sessionErr } = await supabase.auth.getSession();
-      if (sessionErr) console.warn("[admin/anime] getSession error", sessionErr);
-      console.log("[admin/anime] session user?", !!sessionData?.session?.user);
+      // Optional safety check: ensure the client sees an authenticated user
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData?.user) {
+        setRows([]);
+        setLoading(false);
+        alert("You are not signed in. Please sign in again.");
+        return;
+      }
 
       const { data, error } = await supabase
         .from("anime")
@@ -86,7 +91,6 @@ export default function AdminAnimePage() {
 
       if (error) {
         console.error("[admin/anime] load error", error);
-        alert(`Failed to load anime: ${error.message}`);
         setRows([]);
         setLoading(false);
         return;
@@ -100,11 +104,13 @@ export default function AdminAnimePage() {
       setLoading(false);
     };
 
-    load();
+    void load();
   }, [supabase]);
 
   const handleFieldChange = <K extends keyof AnimeRow>(field: K, value: AnimeRow[K]) => {
-    setRows((prev) => prev.map((row, idx) => (idx === selectedIndex ? { ...row, [field]: value } : row)));
+    setRows((prev) =>
+      prev.map((row, idx) => (idx === selectedIndex ? { ...row, [field]: value } : row))
+    );
   };
 
   const handleSave = async () => {
@@ -128,7 +134,7 @@ export default function AdminAnimePage() {
 
     if (error) {
       console.error("[admin/anime] save error", error);
-      alert(`Failed to save changes: ${error.message}`);
+      alert("Failed to save changes.");
     }
 
     setSaving(false);
@@ -152,12 +158,14 @@ export default function AdminAnimePage() {
         sort_order: maxSort + 1,
         cover_url: null,
       })
-      .select("id, title, status, total_seasons, seasons_watched, is_favorite, tags, notes, likes, views, sort_order, cover_url")
+      .select(
+        "id, title, status, total_seasons, seasons_watched, is_favorite, tags, notes, likes, views, sort_order, cover_url"
+      )
       .single();
 
     if (error || !data) {
       console.error("[admin/anime] add error", error);
-      alert(`Failed to add anime: ${error?.message ?? "Unknown error"}`);
+      alert("Failed to add anime.");
       setAdding(false);
       return;
     }
@@ -181,9 +189,9 @@ export default function AdminAnimePage() {
   const handleCoverUpload = async (file: File) => {
     if (!current) return;
 
-    setUploading(true);
-
     try {
+      setUploading(true);
+
       const ext = file.name.split(".").pop() || "jpg";
       const path = `${current.id}/cover.${ext}`;
 
@@ -195,22 +203,30 @@ export default function AdminAnimePage() {
 
       if (uploadError) {
         console.error("[admin/anime] upload error", uploadError);
-        alert(`Failed to upload image: ${uploadError.message}`);
+        alert("Failed to upload image.");
         return;
       }
 
-      const { data: urlData } = supabase.storage.from(BUCKET_NAME).getPublicUrl(path);
-      const publicUrl = urlData.publicUrl;
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from(BUCKET_NAME).getPublicUrl(path);
 
-      const { error: updateError } = await supabase.from("anime").update({ cover_url: publicUrl }).eq("id", current.id);
+      // Update in DB (this was failing as anon before)
+      const { error: updateError } = await supabase
+        .from("anime")
+        .update({ cover_url: publicUrl })
+        .eq("id", current.id);
 
       if (updateError) {
         console.error("[admin/anime] cover_url update error", updateError);
-        alert(`Uploaded, but failed to save URL: ${updateError.message}`);
+        alert("Uploaded, but failed to save URL: " + updateError.message);
         return;
       }
 
-      setRows((prev) => prev.map((row, idx) => (idx === selectedIndex ? { ...row, coverUrl: publicUrl } : row)));
+      // Update local state
+      setRows((prev) =>
+        prev.map((row, idx) => (idx === selectedIndex ? { ...row, coverUrl: publicUrl } : row))
+      );
     } finally {
       setUploading(false);
     }
@@ -399,6 +415,7 @@ export default function AdminAnimePage() {
                       </div>
                     )}
                   </div>
+
                   <div className="flex-1 space-y-1">
                     <input
                       type="file"
