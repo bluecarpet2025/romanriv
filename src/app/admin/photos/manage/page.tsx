@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { supabase, getMediaPublicUrl } from "@/lib/supabase";
 
 type CategoryValue = "food" | "car" | "anime" | "business";
 
@@ -240,16 +240,7 @@ export default function ManagePhotosPage() {
                 <div className="relative overflow-hidden rounded-lg border border-slate-800 bg-slate-900/80 pb-[75%]">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={
-                      photo.image_path.startsWith("http")
-                        ? photo.image_path
-                        : `https://${
-                            process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(
-                              /^https?:\/\//,
-                              ""
-                            )
-                          }/storage/v1/object/public/media/${photo.image_path}`
-                    }
+                    src={getMediaPublicUrl(photo.image_path)}
                     alt={photo.title ?? ""}
                     className="absolute inset-0 h-full w-full object-cover"
                   />

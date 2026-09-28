@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 
 const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const r2PublicBaseUrl = process.env.NEXT_PUBLIC_R2_PUBLIC_BASE_URL?.replace(/\/+$/, "");
 
 // Debug: log exactly what Next.js sees from your env
 console.log(
@@ -45,5 +46,9 @@ export function getMediaPublicUrl(imagePath: string): string {
     return imagePath;
   }
 
-  return `${supabaseUrl}/storage/v1/object/public/media/${imagePath}`;
+  if (!r2PublicBaseUrl) {
+    throw new Error("Missing NEXT_PUBLIC_R2_PUBLIC_BASE_URL");
+  }
+
+  return `${r2PublicBaseUrl}/${imagePath}`;
 }
