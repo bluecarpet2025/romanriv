@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createSupabaseBrowser } from "@/lib/supabaseAuth";
-
-const BUCKET_NAME = "anime-covers"; // make sure this bucket exists in Supabase
+import { uploadAdminImage } from "@/lib/upload-client";
+import { IMAGE_ACCEPT } from "@/lib/uploads";
 
 // DB row shape
 type DbAnimeRow = {
@@ -66,6 +66,7 @@ export default function AdminAnimePage() {
   const [saving, setSaving] = useState(false);
   const [adding, setAdding] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const uploadInProgress = useRef(false);
 
   const current = rows[selectedIndex] ?? null;
 
@@ -114,7 +115,7 @@ export default function AdminAnimePage() {
   };
 
   const handleSave = async () => {
-    if (!current) return;
+    if (!current || uploadInProgress.current) return;
 
     setSaving(true);
 
@@ -185,49 +186,25 @@ export default function AdminAnimePage() {
   const goPrev = () => setSelectedIndex((idx) => (idx > 0 ? idx - 1 : idx));
   const goNext = () => setSelectedIndex((idx) => (idx < rows.length - 1 ? idx + 1 : idx));
 
-  // Upload cover image to Supabase Storage and save URL to this row
+  // The server saves the URL only after verifying the new R2 object.
   const handleCoverUpload = async (file: File) => {
-    if (!current) return;
+    if (!current || saving || uploadInProgress.current) return;
+    const animeId = current.id;
+    uploadInProgress.current = true;
 
     try {
       setUploading(true);
 
-      const ext = file.name.split(".").pop() || "jpg";
-      const path = `${current.id}/cover.${ext}`;
-
-      const { error: uploadError } = await supabase.storage.from(BUCKET_NAME).upload(path, file, {
-        upsert: true,
-        cacheControl: "3600",
-        contentType: file.type,
-      });
-
-      if (uploadError) {
-        console.error("[admin/anime] upload error", uploadError);
-        alert("Failed to upload image.");
-        return;
-      }
-
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from(BUCKET_NAME).getPublicUrl(path);
-
-      // Update in DB (this was failing as anon before)
-      const { error: updateError } = await supabase
-        .from("anime")
-        .update({ cover_url: publicUrl })
-        .eq("id", current.id);
-
-      if (updateError) {
-        console.error("[admin/anime] cover_url update error", updateError);
-        alert("Uploaded, but failed to save URL: " + updateError.message);
-        return;
-      }
+      const { publicUrl } = await uploadAdminImage(file, "anime-covers", animeId);
 
       // Update local state
       setRows((prev) =>
-        prev.map((row, idx) => (idx === selectedIndex ? { ...row, coverUrl: publicUrl } : row))
+        prev.map((row) => (row.id === animeId ? { ...row, coverUrl: publicUrl } : row))
       );
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Cover upload failed. Please try again.");
     } finally {
+      uploadInProgress.current = false;
       setUploading(false);
     }
   };
@@ -252,6 +229,7 @@ export default function AdminAnimePage() {
                 <span>Select title:</span>
                 <select
                   value={current?.id ?? ""}
+                  disabled={uploading || saving}
                   onChange={(e) => {
                     const idx = rows.findIndex((r) => r.id === e.target.value);
                     if (idx !== -1) setSelectedIndex(idx);
@@ -269,6 +247,7 @@ export default function AdminAnimePage() {
                 <button
                   type="button"
                   onClick={goPrev}
+                  disabled={uploading || saving}
                   className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100"
                 >
                   ←
@@ -276,6 +255,7 @@ export default function AdminAnimePage() {
                 <button
                   type="button"
                   onClick={goNext}
+                  disabled={uploading || saving}
                   className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100"
                 >
                   →
@@ -287,7 +267,7 @@ export default function AdminAnimePage() {
           <button
             type="button"
             onClick={handleAddNew}
-            disabled={adding}
+            disabled={adding || uploading || saving}
             className="rounded-md bg-sky-600 px-3 py-1 text-xs font-semibold text-white hover:bg-sky-500 disabled:opacity-60"
           >
             {adding ? "Adding..." : "Add anime"}
@@ -394,6 +374,7 @@ export default function AdminAnimePage() {
                 <input
                   type="text"
                   value={current.coverUrl ?? ""}
+                  disabled={uploading || saving}
                   onChange={(e) => handleFieldChange("coverUrl", e.target.value.trim() || null)}
                   placeholder="https://…"
                   className="mt-1 w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100"
@@ -419,7 +400,8 @@ export default function AdminAnimePage() {
                   <div className="flex-1 space-y-1">
                     <input
                       type="file"
-                      accept="image/*"
+                      accept={IMAGE_ACCEPT}
+                      disabled={uploading || saving}
                       onChange={(e) => {
                         const file = e.target.files?.[0];
                         if (file) {
@@ -430,7 +412,7 @@ export default function AdminAnimePage() {
                       className="block w-full text-xs text-slate-100 file:mr-2 file:rounded-md file:border-0 file:bg-slate-700 file:px-2 file:py-1 file:text-xs file:font-semibold file:text-slate-50 hover:file:bg-slate-600"
                     />
                     <p className="text-[11px] text-slate-500">
-                      {uploading ? "Uploading…" : "JPEG/PNG is fine. Uploading will auto-save the URL."}
+                      {uploading ? "Uploading…" : "JPEG, PNG, WebP, GIF, or AVIF; up to 20 MiB. Uploading will auto-save the URL."}
                     </p>
                   </div>
                 </div>
@@ -444,7 +426,7 @@ export default function AdminAnimePage() {
               <button
                 type="button"
                 onClick={handleSave}
-                disabled={saving}
+                disabled={saving || uploading}
                 className="rounded-md bg-sky-600 px-3 py-1 text-xs font-semibold text-white hover:bg-sky-500 disabled:opacity-60"
               >
                 {saving ? "Saving..." : "Save changes"}
