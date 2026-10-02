@@ -1,6 +1,6 @@
 import "server-only";
 import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
-import { GetObjectCommand, HeadObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { DeleteObjectCommand, GetObjectCommand, HeadObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { IMAGE_EXTENSIONS, UploadError, type UploadInput } from "@/lib/uploads";
 
@@ -50,6 +50,23 @@ export function r2PublicUrl(key: string) {
   const base = requiredEnv("NEXT_PUBLIC_R2_PUBLIC_BASE_URL").replace(/\/+$/, "");
   if (new URL(base).protocol !== "https:") throw new UploadError("R2 public URL must use HTTPS.", 503);
   return `${base}/${key}`;
+}
+
+export async function deletePhotoObject(key: unknown) {
+  // Use the DB key verbatim, never a URL or a path outside the photo folders.
+  if (typeof key !== "string" || Buffer.byteLength(key, "utf8") > 1024 ||
+      !/^(food|car)\/.+/.test(key) || /[\\%?#\x00-\x1f\x7f]/.test(key) ||
+      key.split("/").some((segment) => !segment || segment === "." || segment === "..")) {
+    throw new UploadError("This photo has an unsupported image path. Only relative food/ and car/ paths can be deleted.");
+  }
+  const command = new DeleteObjectCommand({ Bucket: r2Config().bucket, Key: key });
+  try {
+    // Deleting an absent key normally succeeds. It must not block row cleanup.
+    await r2Client().send(command);
+  } catch (error) {
+    if (error instanceof Error && error.name === "NoSuchKey") return;
+    throw new UploadError("R2 deletion failed. The photo record was not deleted. Please retry.", 502);
+  }
 }
 
 function ticketSignature(payload: string) {
