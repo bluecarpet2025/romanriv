@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getMediaPublicUrl } from "@/lib/supabase";
 import { createSupabaseBrowser } from "@/lib/supabaseAuth";
+import ImageViewer from "@/components/ImageViewer";
 import styles from "./page.module.css";
 
 type CategoryValue = "food" | "car" | "anime" | "business";
@@ -30,7 +31,7 @@ type EditablePhoto = PhotoRow & {
   error?: string;
   success?: string;
 };
-type EditableField = "title" | "description" | "tagsText" | "likes_count" | "views_count";
+type EditableField = "title" | "description" | "tagsText";
 
 export default function ManagePhotosPage() {
   const supabase = useMemo(() => createSupabaseBrowser(), []);
@@ -40,6 +41,7 @@ export default function ManagePhotosPage() {
   const [loading, setLoading] = useState(true);
   const [globalError, setGlobalError] = useState<string | null>(null);
   const [notice, setNotice] = useState("");
+  const [viewing, setViewing] = useState<{ src: string; alt: string } | null>(null);
   const pending = useRef(new Set<PhotoRow["id"]>());
   const busy = photos.some((photo) => !!photo.busy);
 
@@ -86,7 +88,6 @@ export default function ManagePhotosPage() {
       const tags = photo.tagsText.split(",").map((tag) => tag.trim()).filter(Boolean);
       const { data, error } = await supabase.from("photos").update({
         title: photo.title, description: photo.description, tags,
-        likes_count: photo.likes_count ?? 0, views_count: photo.views_count ?? 0,
       }).eq("id", photo.id).select("id").maybeSingle();
       if (error) throw new Error(error.message);
       if (!data) throw new Error("Photo was not saved. Refresh the list and check your access.");
@@ -155,8 +156,13 @@ export default function ManagePhotosPage() {
                     <small>You can still edit or delete this record.</small>
                   </div>
                 ) : (
-                  <Image src={getMediaPublicUrl(photo.image_path)} alt={photo.title || "Untitled photo"} unoptimized
-                    width={220} height={165} loading="lazy" onError={() => patchPhoto(photo.id, { imageFailed: true })} />
+                  <button type="button" className={styles.thumbnailButton}
+                    aria-label={"View full image: " + (photo.title || "Untitled photo")} aria-haspopup="dialog"
+                    onClick={() => setViewing({ src: getMediaPublicUrl(photo.image_path), alt: photo.title || "Untitled photo" })}>
+                    <Image src={getMediaPublicUrl(photo.image_path)} alt={photo.title || "Untitled photo"} unoptimized
+                      width={220} height={165} loading="lazy" onError={() => patchPhoto(photo.id, { imageFailed: true })} />
+                    <span className={styles.viewHint} aria-hidden="true">View image</span>
+                  </button>
                 )}
               </div>
               <div className={styles.metadata}>
@@ -166,15 +172,15 @@ export default function ManagePhotosPage() {
               </div>
             </div>
             <p className={styles.path} title={photo.image_path}>{photo.image_path || "No image path"}</p>
+            <dl className={styles.stats} aria-label="Photo stats">
+              <div><dt>Likes</dt><dd>{photo.likes_count ?? 0}</dd></div>
+              <div><dt>Views</dt><dd>{photo.views_count ?? 0}</dd></div>
+            </dl>
             <form onSubmit={(event) => { event.preventDefault(); void handleSave(photo); }}>
               <fieldset disabled={!!photo.busy} className={styles.fields}>
                 <label>Title<input value={photo.title ?? ""} onChange={(event) => updateField(photo.id, "title", event.target.value)} /></label>
                 <label>Description<textarea rows={2} value={photo.description ?? ""} onChange={(event) => updateField(photo.id, "description", event.target.value)} /></label>
                 <label>Tags <span className={styles.optional}>(comma-separated)</span><input value={photo.tagsText} onChange={(event) => updateField(photo.id, "tagsText", event.target.value)} /></label>
-                <div className={styles.counters}>
-                  <label>Likes<input type="number" min={0} value={photo.likes_count ?? 0} onChange={(event) => updateField(photo.id, "likes_count", Number(event.target.value) || 0)} /></label>
-                  <label>Views<input type="number" min={0} value={photo.views_count ?? 0} onChange={(event) => updateField(photo.id, "views_count", Number(event.target.value) || 0)} /></label>
-                </div>
                 <div className={styles.actions}>
                   <button type="button" className={styles.deleteButton} onClick={() => void handleDelete(photo)}>{photo.busy === "delete" ? "Deleting…" : "Delete"}</button>
                   <button type="submit" className={styles.saveButton}>{photo.busy === "save" ? "Saving…" : "Save"}</button>
@@ -186,6 +192,7 @@ export default function ManagePhotosPage() {
           </article>
         ))}
       </div>
+      {viewing && <ImageViewer key={viewing.src} src={viewing.src} alt={viewing.alt} onClose={() => setViewing(null)} />}
     </div>
   );
 }
