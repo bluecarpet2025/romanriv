@@ -1,56 +1,30 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 
+const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export async function POST(req: Request) {
   try {
-    const { id } = await req.json();
-
-    if (!id) {
-      return NextResponse.json(
-        { error: "Invalid payload" },
-        { status: 400 }
-      );
+    const body: unknown = await req.json().catch(() => null);
+    const id = body && typeof body === "object" && "id" in body ? body.id : null;
+    if (typeof id !== "string" || !uuid.test(id)) {
+      return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
     }
 
-    // simple "+1" increment – no floor required
-    const { data, error } = await supabase
-      .from("anime")
-      .select("views")
-      .eq("id", id)
-      .single();
-
-    if (error || !data) {
-      console.error("[anime/view] select error", error);
-      return NextResponse.json(
-        { error: "Anime not found" },
-        { status: 404 }
-      );
+    const { data, error } = await supabase.rpc("increment_anime_views", { anime_id: id });
+    if (error) {
+      console.error("[anime/view] RPC error", error);
+      return NextResponse.json({ error: "Failed to update views" }, { status: 500 });
     }
-
-    const currentViews = data.views ?? 0;
-    const newViews = currentViews + 1;
-
-    const { data: updated, error: updateError } = await supabase
-      .from("anime")
-      .update({ views: newViews })
-      .eq("id", id)
-      .select("views")
-      .single();
-
-    if (updateError || !updated) {
-      console.error("[anime/view] update error", updateError);
-      return NextResponse.json(
-        { error: "Failed to update views" },
-        { status: 500 }
-      );
+    if (data === null) {
+      return NextResponse.json({ error: "Anime not found" }, { status: 404 });
     }
-
-    return NextResponse.json({ views: updated.views });
+    if (!Number.isInteger(data) || data < 0) {
+      return NextResponse.json({ error: "Failed to update views" }, { status: 500 });
+    }
+    return NextResponse.json({ views: data });
   } catch (err) {
     console.error("[anime/view] unexpected error", err);
-    return NextResponse.json(
-      { error: "Unexpected error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Unexpected error" }, { status: 500 });
   }
 }

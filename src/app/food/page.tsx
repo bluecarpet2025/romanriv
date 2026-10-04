@@ -1,6 +1,6 @@
 // src/app/food/page.tsx
-import Image from "next/image";
-import { LikeButton } from "@/components/LikeButton";
+import PhotoMediaGrid, { type PhotoMediaItem } from "@/components/PhotoMediaGrid";
+import styles from "@/components/PublicMedia.module.css";
 import { supabase, getMediaPublicUrl } from "@/lib/supabase";
 import { PhotoViewTracker } from "@/components/PhotoViewTracker";
 
@@ -8,15 +8,7 @@ export const metadata = {
   title: "Food | romanriv.com",
 };
 
-type FoodItem = {
-  id: string | number;
-  title: string;
-  subtitle?: string;
-  imageUrl: string;
-  tags: string[];
-  likes: number;
-  views: number;
-};
+type FoodItem = PhotoMediaItem;
 
 async function getFoodPhotos(): Promise<FoodItem[]> {
   const fallback: FoodItem[] = [
@@ -60,7 +52,7 @@ async function getFoodPhotos(): Promise<FoodItem[]> {
 
   if (error || !data || data.length === 0) return fallback;
 
-  return data.map((row: any) => ({
+  return data.map((row) => ({
     id: row.id,
     title: row.title,
     subtitle: row.description ?? "",
@@ -71,122 +63,32 @@ async function getFoodPhotos(): Promise<FoodItem[]> {
   }));
 }
 
-function FoodGrid({ items }: { items: FoodItem[] }) {
-  if (!items.length) {
-    return (
-      <p className="mt-4 text-sm text-slate-400">
-        No food photos yet. Once you add some, they&apos;ll show up here.
-      </p>
-    );
-  }
-
-  return (
-    <div
-      className="mt-3"
-      style={{
-        display: "grid",
-        // Bigger tiles than anime, aiming for ~3 per row on desktop
-        gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
-        gap: "1rem",
-      }}
-    >
-      {items.map((item) => (
-        <article
-          key={item.id}
-          className="group flex flex-col overflow-hidden rounded-xl bg-slate-950/90 text-xs shadow-sm ring-1 ring-slate-800/80 transition hover:bg-slate-900/90 hover:ring-sky-500/70"
-        >
-          {/* Image */}
-          <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-900">
-            <Image
-              src={item.imageUrl}
-              alt={item.title}
-              fill
-              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-              className="object-cover"
-            />
-          </div>
-
-          {/* Content */}
-          <div className="flex flex-1 flex-col gap-2 px-3 py-3">
-            <h3 className="text-sm font-semibold text-slate-50 line-clamp-2">
-              {item.title}
-            </h3>
-
-            {item.subtitle && (
-              <p className="text-[11px] text-slate-400 line-clamp-2">
-                {item.subtitle}
-              </p>
-            )}
-
-            <div className="mt-1 flex items-end justify-between gap-3">
-              {/* Tags */}
-              <div className="text-[10px] uppercase tracking-wide text-slate-500 line-clamp-1">
-                {item.tags && item.tags.length > 0 ? (
-                  item.tags
-                    .map((t) => t.trim())
-                    .filter(Boolean)
-                    .join(" · ")
-                ) : (
-                  <span className="opacity-50">No tags yet</span>
-                )}
-              </div>
-
-              {/* Likes + views */}
-              <div className="flex items-center gap-3 text-slate-300">
-                <div className="text-sm leading-none">
-                  <LikeButton
-                    photoId={String(item.id)}
-                    initialLikes={item.likes ?? 0}
-                  />
-                </div>
-                <div className="inline-flex items-center gap-1 text-[11px] leading-none opacity-90">
-                  <span className="text-base">👁</span>
-                  <span className="font-medium tabular-nums">
-                    {item.views ?? 0}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </article>
-      ))}
-    </div>
-  );
-}
-
 export default async function FoodPage() {
   const items = await getFoodPhotos();
 
   return (
-    <div className="page-shell-wide">
-      <header className="card">
-        <h1 className="text-xl font-bold tracking-tight text-slate-50">
-          Food
-        </h1>
-        <p className="mt-3 text-sm text-slate-300">
+    <div className={styles.shell}>
+      <header className={styles.header}>
+        <p className={styles.eyebrow}>From the kitchen</p>
+        <h1>Food</h1>
+        <p>
           For the last few years, every time I cook something and the plate
-          looks good, I take a picture. This page is a collage of those meals:
+          looks good, I take a picture. This is a log of those meals:
           post-gym dinners, weekend experiments, and whatever looked good enough
           to grab the camera.
         </p>
-        <p className="mt-2 text-sm text-slate-400">
-          Over time, each dish will be tied to a real recipe entry with tags,
-          notes, and better search. For now, it&apos;s a visual log powered by
-          Supabase.
+        <p className={styles.secondary}>
+          Over time, each dish will be tied to a recipe with notes and better
+          search. For now, it&apos;s a visual log, with media stored on Cloudflare R2.
         </p>
       </header>
 
-      <section className="mt-6 space-y-4">
-        <div className="flex items-baseline justify-between">
-          <h2 className="section-title">Recent dishes</h2>
-          <p className="section-subtitle">
-            Tags, likes, and views per picture.
-          </p>
+      <section className={styles.section} aria-labelledby="food-heading">
+        <div className={styles.sectionHeader}>
+          <h2 id="food-heading">Recent dishes <span className={styles.count}>{items.length}</span></h2>
+          <p>Open a photo for a closer look.</p>
         </div>
-
-        <FoodGrid items={items} />
-
-        {/* bump views for all photos rendered on this page */}
+        <PhotoMediaGrid items={items} emptyMessage="No food photos yet. Check back for the next meal." />
         <PhotoViewTracker ids={items.map((item) => item.id)} />
       </section>
     </div>
