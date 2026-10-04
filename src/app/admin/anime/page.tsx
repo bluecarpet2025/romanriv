@@ -1,440 +1,277 @@
 "use client";
 
+import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
+import ImageViewer from "@/components/ImageViewer";
 import { createSupabaseBrowser } from "@/lib/supabaseAuth";
 import { uploadAdminImage } from "@/lib/upload-client";
 import { IMAGE_ACCEPT } from "@/lib/uploads";
+import { ANIME_COLUMNS, ANIME_STATUSES, animeSavePayload, browseAnime, normaliseAnime,
+  type AnimeDraft, type AnimeRow, type AnimeSort, type DbAnimeRow } from "@/lib/anime-management";
+import styles from "./page.module.css";
 
-// DB row shape
-type DbAnimeRow = {
-  id: string;
-  title: string;
-  status: string | null;
-  total_seasons: number | null;
-  seasons_watched: number | null;
-  is_favorite: boolean | null;
-  tags: string[] | null;
-  notes: string | null;
-  likes: number | null;
-  views: number | null;
-  sort_order: number | null;
-  cover_url: string | null;
-};
+type Operation = "save" | "upload" | "delete";
+type RowMessage = { error?: string; success?: string };
+type DraftField = "title" | "favorite" | "status" | "seasons_watched" | "total_seasons" | "tagsText" | "notes" | "sortOrder" | "coverUrl";
+const makeDraft = (row: AnimeRow): AnimeDraft => ({ ...row, tagsText: row.tags.join(", "), dirty: false });
+const message = (error: unknown, fallback: string) => error instanceof Error ? error.message : fallback;
 
-// UI row shape
-type AnimeRow = {
-  id: string;
-  title: string;
-  favorite: boolean;
-  status: string;
-  total_seasons: number;
-  seasons_watched: number;
-  notes: string | null;
-  tags: string[];
-  likes: number;
-  views: number;
-  sortOrder: number;
-  coverUrl: string | null;
-};
-
-const STATUS_OPTIONS = ["watching", "watched", "planned", "on-hold", "dropped"];
-
-function normaliseRow(row: DbAnimeRow): AnimeRow {
-  return {
-    id: row.id,
-    title: row.title,
-    favorite: !!row.is_favorite,
-    status: row.status ?? "planned",
-    total_seasons: row.total_seasons ?? 1,
-    seasons_watched: row.seasons_watched ?? 0,
-    notes: row.notes,
-    tags: (row.tags ?? []).map((t) => t.trim()).filter(Boolean),
-    likes: row.likes ?? 0,
-    views: row.views ?? 0,
-    sortOrder: row.sort_order ?? 0,
-    coverUrl: row.cover_url ?? null,
-  };
+function Cover({ src, title, onView }: { src: string; title: string; onView: () => void }) {
+  const [failed, setFailed] = useState(false);
+  return (
+    <div className={styles.poster}>
+      {!src || failed ? (
+        <div className={styles.placeholder} role="img" aria-label={src ? "Cover unavailable" : "No cover"}>
+          <span aria-hidden="true">▧</span><strong>{src ? "Cover unavailable" : "No cover yet"}</strong>
+        </div>
+      ) : (
+        <button type="button" className={styles.coverButton} aria-haspopup="dialog"
+          aria-label={"View cover: " + title} onClick={onView}>
+          <Image src={src} alt={title} width={144} height={216} unoptimized onError={() => setFailed(true)} />
+          <span className={styles.viewHint} aria-hidden="true">View cover</span>
+        </button>
+      )}
+    </div>
+  );
 }
 
 export default function AdminAnimePage() {
-  // IMPORTANT: use the authenticated browser client (cookie/session aware)
   const supabase = useMemo(() => createSupabaseBrowser(), []);
-
   const [rows, setRows] = useState<AnimeRow[]>([]);
-  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [drafts, setDrafts] = useState<Record<string, AnimeDraft>>({});
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState("all");
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
+  const [sort, setSort] = useState<AnimeSort>("sort-order");
+  const [revision, setRevision] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [adding, setAdding] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const uploadInProgress = useRef(false);
+  const [operations, setOperations] = useState<Record<string, Operation | undefined>>({});
+  const [messages, setMessages] = useState<Record<string, RowMessage>>({});
+  const [globalError, setGlobalError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [viewing, setViewing] = useState<{ src: string; alt: string } | null>(null);
+  const pending = useRef(new Set<string>());
+  const addingRef = useRef(false);
+  const titleRef = useRef<HTMLInputElement>(null);
+  const busy = adding || Object.values(operations).some(Boolean);
+  const visibleRows = useMemo(() => browseAnime(rows, search, status, favoritesOnly, sort), [rows, search, status, favoritesOnly, sort]);
 
-  const current = rows[selectedIndex] ?? null;
-
-  // Load anime list
   useEffect(() => {
+    let cancelled = false;
     const load = async () => {
-      setLoading(true);
-
-      // Optional safety check: ensure the client sees an authenticated user
-      const { data: userData } = await supabase.auth.getUser();
-      if (!userData?.user) {
-        setRows([]);
-        setLoading(false);
-        alert("You are not signed in. Please sign in again.");
-        return;
+      try {
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        if (authError || !user) throw new Error("Please sign in again.");
+        const { data, error } = await supabase.from("anime").select(ANIME_COLUMNS);
+        if (error) throw new Error(error.message);
+        if (!cancelled) setRows((data as DbAnimeRow[] ?? []).map(normaliseAnime));
+      } catch (error) {
+        if (!cancelled) setGlobalError(message(error, "Could not load anime."));
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-
-      const { data, error } = await supabase
-        .from("anime")
-        .select(
-          "id, title, status, total_seasons, seasons_watched, is_favorite, tags, notes, likes, views, sort_order, cover_url"
-        );
-
-      if (error) {
-        console.error("[admin/anime] load error", error);
-        setRows([]);
-        setLoading(false);
-        return;
-      }
-
-      const mapped = (data ?? []).map((r) => normaliseRow(r as DbAnimeRow));
-      mapped.sort((a, b) => a.sortOrder - b.sortOrder);
-
-      setRows(mapped);
-      setSelectedIndex(0);
-      setLoading(false);
     };
-
     void load();
-  }, [supabase]);
+    return () => { cancelled = true; };
+  }, [supabase, revision]);
 
-  const handleFieldChange = <K extends keyof AnimeRow>(field: K, value: AnimeRow[K]) => {
-    setRows((prev) =>
-      prev.map((row, idx) => (idx === selectedIndex ? { ...row, [field]: value } : row))
-    );
-  };
-
-  const handleSave = async () => {
-    if (!current || uploadInProgress.current) return;
-
-    setSaving(true);
-
-    const payload = {
-      title: current.title,
-      status: current.status,
-      total_seasons: current.total_seasons,
-      seasons_watched: current.seasons_watched,
-      is_favorite: current.favorite,
-      tags: current.tags,
-      notes: current.notes,
-      sort_order: current.sortOrder,
-      cover_url: current.coverUrl,
-    };
-
-    const { error } = await supabase.from("anime").update(payload).eq("id", current.id);
-
-    if (error) {
-      console.error("[admin/anime] save error", error);
-      alert("Failed to save changes.");
+  useEffect(() => {
+    if (selectedId) {
+      titleRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+      titleRef.current?.focus({ preventScroll: true });
     }
+  }, [selectedId]);
 
-    setSaving(false);
-  };
-
-  const handleAddNew = async () => {
-    setAdding(true);
-
-    const maxSort = rows.length > 0 ? Math.max(...rows.map((r) => r.sortOrder)) : 0;
-
-    const { data, error } = await supabase
-      .from("anime")
-      .insert({
-        title: "New anime",
-        status: "planned",
-        total_seasons: 1,
-        seasons_watched: 0,
-        is_favorite: false,
-        tags: [],
-        notes: "",
-        sort_order: maxSort + 1,
-        cover_url: null,
-      })
-      .select(
-        "id, title, status, total_seasons, seasons_watched, is_favorite, tags, notes, likes, views, sort_order, cover_url"
-      )
-      .single();
-
-    if (error || !data) {
-      console.error("[admin/anime] add error", error);
-      alert("Failed to add anime.");
-      setAdding(false);
-      return;
-    }
-
-    const newRow = normaliseRow(data as DbAnimeRow);
-
-    setRows((prev) => {
-      const next = [...prev, newRow].sort((a, b) => a.sortOrder - b.sortOrder);
-      const newIndex = next.findIndex((r) => r.id === newRow.id);
-      setSelectedIndex(newIndex === -1 ? 0 : newIndex);
-      return next;
-    });
-
-    setAdding(false);
-  };
-
-  const goPrev = () => setSelectedIndex((idx) => (idx > 0 ? idx - 1 : idx));
-  const goNext = () => setSelectedIndex((idx) => (idx < rows.length - 1 ? idx + 1 : idx));
-
-  // The server saves the URL only after verifying the new R2 object.
-  const handleCoverUpload = async (file: File) => {
-    if (!current || saving || uploadInProgress.current) return;
-    const animeId = current.id;
-    uploadInProgress.current = true;
-
+  function openEditor(row: AnimeRow) {
+    setDrafts((previous) => previous[row.id] ? previous : { ...previous, [row.id]: makeDraft(row) });
+    setSelectedId(row.id);
+  }
+  function updateDraft<K extends DraftField>(id: string, field: K, value: AnimeDraft[K]) {
+    setDrafts((previous) => ({ ...previous, [id]: { ...previous[id], [field]: value, dirty: true } }));
+    setMessages((previous) => ({ ...previous, [id]: {} }));
+  }
+  function start(id: string, operation: Operation) {
+    if (pending.current.has(id) || addingRef.current) return false;
+    pending.current.add(id);
+    setOperations((previous) => ({ ...previous, [id]: operation }));
+    setMessages((previous) => ({ ...previous, [id]: {} }));
+    setNotice("");
+    return true;
+  }
+  function finish(id: string) {
+    pending.current.delete(id);
+    setOperations((previous) => ({ ...previous, [id]: undefined }));
+  }
+  function rowMessage(id: string, value: RowMessage) {
+    setMessages((previous) => ({ ...previous, [id]: value }));
+  }
+  function refresh() {
+    if (pending.current.size || addingRef.current) return;
+    if (Object.values(drafts).some((draft) => draft.dirty) && !window.confirm("Refresh and discard unsaved anime edits?")) return;
+    setLoading(true); setGlobalError(""); setNotice(""); setRows([]); setDrafts({}); setMessages({}); setSelectedId(null);
+    setRevision((value) => value + 1);
+  }
+  async function save(draft: AnimeDraft) {
+    if (!start(draft.id, "save")) return;
     try {
-      setUploading(true);
-
-      const { publicUrl } = await uploadAdminImage(file, "anime-covers", animeId);
-
-      // Update local state
-      setRows((prev) =>
-        prev.map((row) => (row.id === animeId ? { ...row, coverUrl: publicUrl } : row))
-      );
+      const { data, error } = await supabase.from("anime").update(animeSavePayload(draft))
+        .eq("id", draft.id).select(ANIME_COLUMNS).maybeSingle();
+      if (error) throw new Error(error.message);
+      if (!data) throw new Error("Anime was not saved. Refresh and check your access.");
+      const saved = normaliseAnime(data as DbAnimeRow);
+      setRows((previous) => previous.map((row) => row.id === saved.id ? saved : row));
+      setDrafts((previous) => ({ ...previous, [saved.id]: makeDraft(saved) }));
+      rowMessage(saved.id, { success: "Saved" });
+      setNotice('Saved "' + saved.title + '".');
     } catch (error) {
-      alert(error instanceof Error ? error.message : "Cover upload failed. Please try again.");
-    } finally {
-      uploadInProgress.current = false;
-      setUploading(false);
-    }
-  };
+      rowMessage(draft.id, { error: message(error, "Could not save anime.") });
+    } finally { finish(draft.id); }
+  }
+  async function addAnime() {
+    if (pending.current.size || addingRef.current || loading) return;
+    addingRef.current = true; setAdding(true); setGlobalError(""); setNotice("");
+    try {
+      const maxSort = rows.length ? Math.max(...rows.map((row) => row.sortOrder)) : 0;
+      const { data, error } = await supabase.from("anime").insert({
+        title: "New anime", status: "planned", total_seasons: 1, seasons_watched: 0,
+        is_favorite: false, tags: [], notes: "", sort_order: maxSort + 1, cover_url: null,
+      }).select(ANIME_COLUMNS).single();
+      if (error) throw new Error(error.message);
+      if (!data) throw new Error("Anime was not added. Please retry.");
+      const added = normaliseAnime(data as DbAnimeRow);
+      setRows((previous) => [...previous, added]);
+      setDrafts((previous) => ({ ...previous, [added.id]: makeDraft(added) }));
+      setSearch(""); setStatus("all"); setFavoritesOnly(false); setSort("sort-order"); setSelectedId(added.id);
+      setNotice("Added anime. Enter its details and save; you can upload a cover now.");
+    } catch (error) { setGlobalError(message(error, "Could not add anime.")); }
+    finally { addingRef.current = false; setAdding(false); }
+  }
+  async function uploadCover(id: string, file: File) {
+    if (!start(id, "upload")) return;
+    try {
+      // Existing helper verifies R2 and updates the DB before returning the URL.
+      const { publicUrl } = await uploadAdminImage(file, "anime-covers", id);
+      setRows((previous) => previous.map((row) => row.id === id ? { ...row, coverUrl: publicUrl } : row));
+      setDrafts((previous) => ({ ...previous, [id]: { ...previous[id], coverUrl: publicUrl } }));
+      rowMessage(id, { success: "Cover uploaded and saved. Other edits still need Save." });
+    } catch (error) { rowMessage(id, { error: message(error, "Cover upload failed. Please retry.") }); }
+    finally { finish(id); }
+  }
+  async function deleteAnime(row: AnimeRow) {
+    if (pending.current.has(row.id) || addingRef.current) return;
+    if (!window.confirm('Delete "' + row.title + '"?\n\nThis permanently deletes the anime record. Cover images will be retained.')) return;
+    if (!start(row.id, "delete")) return;
+    try {
+      const response = await fetch("/api/anime/" + encodeURIComponent(row.id), {
+        method: "DELETE", credentials: "same-origin", headers: { "Content-Type": "application/json" },
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Could not delete anime.");
+      setRows((previous) => previous.filter((item) => item.id !== row.id));
+      setDrafts((previous) => { const next = { ...previous }; delete next[row.id]; return next; });
+      setSelectedId((previous) => previous === row.id ? null : previous);
+      setNotice('Deleted "' + row.title + '". Cover images were retained.');
+    } catch (error) { rowMessage(row.id, { error: message(error, "Could not delete anime. Refresh to check its status.") }); }
+    finally { finish(row.id); }
+  }
 
   return (
-    <div className="page-shell-wide">
-      <header className="card">
-        <h1 className="text-xl font-bold tracking-tight text-slate-50">Anime admin</h1>
-        <p className="mt-3 text-sm text-slate-300">
-          Manage your anime list here. This is only for you – the public page under{" "}
-          <code className="px-1">/anime</code> will render a nicer view of this data.
-        </p>
+    <div className={styles.shell}>
+      <header className={styles.header}>
+        <div><p className={styles.eyebrow}>Anime library</p><h1>Manage anime</h1><p>Browse your collection, edit details, and replace covers.</p></div>
+        <Link href="/admin">Admin dashboard</Link>
       </header>
-
-      <section className="card mt-4 space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex flex-wrap items-center gap-3">
-            <h2 className="text-sm font-semibold text-slate-100">Anime list</h2>
-
-            {rows.length > 0 && (
-              <div className="flex flex-wrap items-center gap-2 text-xs text-slate-200">
-                <span>Select title:</span>
-                <select
-                  value={current?.id ?? ""}
-                  disabled={uploading || saving}
-                  onChange={(e) => {
-                    const idx = rows.findIndex((r) => r.id === e.target.value);
-                    if (idx !== -1) setSelectedIndex(idx);
-                  }}
-                  className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100"
-                >
-                  {rows.map((row) => (
-                    <option key={row.id} value={row.id}>
-                      {row.favorite ? "★ " : ""}
-                      {row.title}
-                    </option>
-                  ))}
-                </select>
-
-                <button
-                  type="button"
-                  onClick={goPrev}
-                  disabled={uploading || saving}
-                  className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100"
-                >
-                  ←
-                </button>
-                <button
-                  type="button"
-                  onClick={goNext}
-                  disabled={uploading || saving}
-                  className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100"
-                >
-                  →
-                </button>
-              </div>
-            )}
-          </div>
-
-          <button
-            type="button"
-            onClick={handleAddNew}
-            disabled={adding || uploading || saving}
-            className="rounded-md bg-sky-600 px-3 py-1 text-xs font-semibold text-white hover:bg-sky-500 disabled:opacity-60"
-          >
-            {adding ? "Adding..." : "Add anime"}
-          </button>
-        </div>
-
-        {loading ? (
-          <p className="text-sm text-slate-400">Loading…</p>
-        ) : !current ? (
-          <p className="text-sm text-slate-400">No anime yet. Click &quot;Add anime&quot; to start.</p>
-        ) : (
-          <div className="space-y-3 rounded-md border border-slate-800 bg-slate-950/60 p-3 text-xs sm:text-sm">
-            <div className="flex flex-wrap items-center gap-3">
-              <label className="flex items-center gap-1 text-slate-200">
-                <input
-                  type="checkbox"
-                  checked={current.favorite}
-                  onChange={(e) => handleFieldChange("favorite", e.target.checked)}
-                  className="h-4 w-4 rounded border-slate-600 bg-slate-900"
-                />
-                <span>Favorite</span>
-              </label>
-
-              <div className="flex-1 min-w-[160px]">
-                <label className="block text-slate-300">Title</label>
-                <input
-                  type="text"
-                  value={current.title}
-                  onChange={(e) => handleFieldChange("title", e.target.value)}
-                  className="mt-1 w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100"
-                />
-              </div>
-
-              <div>
-                <label className="block text-slate-300">Status</label>
-                <select
-                  value={current.status}
-                  onChange={(e) => handleFieldChange("status", e.target.value)}
-                  className="mt-1 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100"
-                >
-                  {STATUS_OPTIONS.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-slate-300">Seasons (watched / total)</label>
-                <div className="mt-1 flex items-center gap-1">
-                  <input
-                    type="number"
-                    min={0}
-                    value={current.seasons_watched}
-                    onChange={(e) => handleFieldChange("seasons_watched", Number(e.target.value))}
-                    className="w-14 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100"
-                  />
-                  <span>/</span>
-                  <input
-                    type="number"
-                    min={1}
-                    value={current.total_seasons}
-                    onChange={(e) => handleFieldChange("total_seasons", Number(e.target.value))}
-                    className="w-14 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100"
-                  />
+      <div className={styles.toolbar}>
+        <label className={styles.search}>Search by title<input type="search" value={search} placeholder="Find an anime…"
+          disabled={busy || loading} onChange={(event) => setSearch(event.target.value)} /></label>
+        <label>Sort<select value={sort} disabled={busy || loading} onChange={(event) => setSort(event.target.value as AnimeSort)}>
+          <option value="title-asc">Title A–Z</option><option value="title-desc">Title Z–A</option>
+          <option value="sort-order">Sort order</option><option value="status">Status</option>
+        </select></label>
+        <label>Status<select value={status} disabled={busy || loading} onChange={(event) => setStatus(event.target.value)}>
+          <option value="all">All</option>{ANIME_STATUSES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+        </select></label>
+        <label className={styles.check}><input type="checkbox" checked={favoritesOnly} disabled={busy || loading}
+          onChange={(event) => setFavoritesOnly(event.target.checked)} />Favorites only</label>
+        <button type="button" disabled={loading || busy} onClick={refresh}>Refresh</button>
+        <span className={styles.count}>{loading ? "Loading…" : visibleRows.length + " of " + rows.length + " anime"}</span>
+        <button type="button" className={styles.primary} disabled={loading || busy} onClick={() => void addAnime()}>{adding ? "Adding…" : "+ Add anime"}</button>
+      </div>
+      {globalError && <p className={styles.error} role="alert">{globalError}</p>}
+      {notice && <p className={styles.success} role="status">{notice}</p>}
+      {loading && <p className={styles.empty} role="status">Loading anime…</p>}
+      {!loading && !globalError && !rows.length && <p className={styles.empty}>No anime yet. Add an anime to start your collection.</p>}
+      {!loading && !!rows.length && !visibleRows.length && <p className={styles.empty}>No anime match these filters.</p>}
+      <div className={styles.grid}>
+        {visibleRows.map((saved) => {
+          const editing = saved.id === selectedId;
+          const draft = drafts[saved.id];
+          const row = editing && draft ? draft : saved;
+          const operation = operations[saved.id];
+          const disabled = !!operation || adding;
+          const feedback = messages[saved.id];
+          return (
+            <article key={saved.id} className={styles.card + (editing ? " " + styles.editing : "")}
+              aria-label={row.title} aria-busy={!!operation}>
+              <div className={styles.summary}>
+                <Cover key={row.coverUrl} src={row.coverUrl} title={row.title || "Untitled anime"}
+                  onView={() => setViewing({ src: row.coverUrl, alt: row.title || "Untitled anime" })} />
+                <div className={styles.overview}>
+                  <h2>{row.favorite && <span className={styles.star} aria-label="Favorite">★ </span>}{row.title || "Untitled anime"}</h2>
+                  <span className={styles.badge}>{ANIME_STATUSES.find((item) => item.value === row.status)?.label ?? row.status}</span>
+                  <p>{row.seasons_watched} / {row.total_seasons} seasons watched</p>
+                  <p>Position {row.sortOrder}</p>
+                  <dl className={styles.stats}><div><dt>Likes</dt><dd>{saved.likes}</dd></div><div><dt>Views</dt><dd>{saved.views}</dd></div></dl>
+                  <button type="button" aria-expanded={editing} aria-controls={"editor-" + saved.id} disabled={busy}
+                    onClick={() => editing ? setSelectedId(null) : openEditor(saved)}>{editing ? "Close editor" : "Edit anime"}</button>
+                  {draft?.dirty && <small className={styles.unsaved}>Unsaved changes</small>}
                 </div>
               </div>
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div>
-                <label className="block text-slate-300">Tags (comma-separated)</label>
-                <input
-                  type="text"
-                  value={current.tags.join(", ")}
-                  onChange={(e) =>
-                    handleFieldChange(
-                      "tags",
-                      e.target.value
-                        .split(",")
-                        .map((t) => t.trim())
-                        .filter(Boolean)
-                    )
-                  }
-                  className="mt-1 w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100"
-                />
-              </div>
-
-              <div>
-                <label className="block text-slate-300">Notes</label>
-                <textarea
-                  rows={2}
-                  value={current.notes ?? ""}
-                  onChange={(e) => handleFieldChange("notes", e.target.value)}
-                  className="mt-1 w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100"
-                />
-              </div>
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div>
-                <label className="block text-slate-300">Cover image URL</label>
-                <input
-                  type="text"
-                  value={current.coverUrl ?? ""}
-                  disabled={uploading || saving}
-                  onChange={(e) => handleFieldChange("coverUrl", e.target.value.trim() || null)}
-                  placeholder="https://…"
-                  className="mt-1 w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100"
-                />
-                <p className="mt-1 text-[11px] text-slate-500">
-                  You can paste a URL directly or upload an image using the field on the right.
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-slate-300">Upload cover image</label>
-                <div className="mt-1 flex items-start gap-3">
-                  <div className="h-20 w-32 overflow-hidden rounded-md border border-slate-700 bg-slate-900">
-                    {current.coverUrl ? (
-                      <img src={current.coverUrl} alt={current.title} className="h-full w-full object-cover" />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center text-[10px] text-slate-500">
-                        No image
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex-1 space-y-1">
-                    <input
-                      type="file"
-                      accept={IMAGE_ACCEPT}
-                      disabled={uploading || saving}
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          void handleCoverUpload(file);
-                          e.target.value = "";
-                        }
-                      }}
-                      className="block w-full text-xs text-slate-100 file:mr-2 file:rounded-md file:border-0 file:bg-slate-700 file:px-2 file:py-1 file:text-xs file:font-semibold file:text-slate-50 hover:file:bg-slate-600"
-                    />
-                    <p className="text-[11px] text-slate-500">
-                      {uploading ? "Uploading…" : "JPEG, PNG, WebP, GIF, or AVIF; up to 20 MiB. Uploading will auto-save the URL."}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-1 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
-              <span>
-                Position: {current.sortOrder} · Likes: {current.likes} · Views: {current.views}
-              </span>
-              <button
-                type="button"
-                onClick={handleSave}
-                disabled={saving || uploading}
-                className="rounded-md bg-sky-600 px-3 py-1 text-xs font-semibold text-white hover:bg-sky-500 disabled:opacity-60"
-              >
-                {saving ? "Saving..." : "Save changes"}
-              </button>
-            </div>
-          </div>
-        )}
-      </section>
+              {editing && draft && (
+                <form id={"editor-" + saved.id} className={styles.editor} onSubmit={(event) => { event.preventDefault(); void save(draft); }}>
+                  <p className={styles.editLabel}>Editing {row.title || "Untitled anime"}</p>
+                  <fieldset disabled={disabled} className={styles.fields}>
+                    <label>Title<input ref={titleRef} required value={draft.title} onChange={(event) => updateDraft(saved.id, "title", event.target.value)} /></label>
+                    <div className={styles.twoColumns}>
+                      <label>Status<select value={draft.status} onChange={(event) => updateDraft(saved.id, "status", event.target.value)}>
+                        {!ANIME_STATUSES.some((item) => item.value === draft.status) && <option value={draft.status}>{draft.status}</option>}
+                        {ANIME_STATUSES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+                      </select></label>
+                      <label className={styles.check}><input type="checkbox" checked={draft.favorite} onChange={(event) => updateDraft(saved.id, "favorite", event.target.checked)} />Favorite</label>
+                    </div>
+                    <div className={styles.threeColumns}>
+                      <label>Watched seasons<input type="number" min={0} step={1} required value={draft.seasons_watched} onChange={(event) => updateDraft(saved.id, "seasons_watched", Number(event.target.value))} /></label>
+                      <label>Total seasons<input type="number" min={1} step={1} required value={draft.total_seasons} onChange={(event) => updateDraft(saved.id, "total_seasons", Number(event.target.value))} /></label>
+                      <label>Sort order<input type="number" step={1} required value={draft.sortOrder} onChange={(event) => updateDraft(saved.id, "sortOrder", Number(event.target.value))} /></label>
+                    </div>
+                    <label>Tags <span className={styles.muted}>(comma-separated)</span><input value={draft.tagsText} onChange={(event) => updateDraft(saved.id, "tagsText", event.target.value)} /></label>
+                    <label>Notes<textarea rows={3} value={draft.notes} onChange={(event) => updateDraft(saved.id, "notes", event.target.value)} /></label>
+                    <label>Replace cover<input className={styles.fileInput} type="file" accept={IMAGE_ACCEPT} onChange={(event) => {
+                      const file = event.target.files?.[0]; event.target.value = "";
+                      if (file) void uploadCover(saved.id, file);
+                    }} /></label>
+                    <p className={styles.help}>{operation === "upload" ? "Uploading and verifying cover…" : "JPEG, PNG, WebP, GIF, or AVIF; up to 20 MiB. Uploads automatically save the cover."}</p>
+                    <details className={styles.advanced}><summary>Advanced: cover URL</summary>
+                      <label>Manual cover URL<input type="text" placeholder="https://…" value={draft.coverUrl} onChange={(event) => updateDraft(saved.id, "coverUrl", event.target.value)} /></label>
+                      <p className={styles.help}>Manual URL changes are applied with Save.</p>
+                    </details>
+                    <div className={styles.actions}>
+                      <button type="button" className={styles.delete} onClick={() => void deleteAnime(saved)}>{operation === "delete" ? "Deleting…" : "Delete anime"}</button>
+                      <button type="submit" className={styles.primary}>{operation === "save" ? "Saving…" : "Save"}</button>
+                    </div>
+                  </fieldset>
+                </form>
+              )}
+              {feedback?.error && <p className={styles.error} role="alert">{feedback.error}</p>}
+              {feedback?.success && <p className={styles.success} role="status">{feedback.success}</p>}
+            </article>
+          );
+        })}
+      </div>
+      {viewing && <ImageViewer key={viewing.src} src={viewing.src} alt={viewing.alt} onClose={() => setViewing(null)} />}
     </div>
   );
 }
