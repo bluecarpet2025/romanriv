@@ -1,7 +1,9 @@
 # Admin image uploads
 
-Supabase remains the database and authentication provider. Only the photo uploader
-and anime cover uploader use this flow; existing records are not migrated.
+The media migration to Cloudflare R2 is complete. Active media reads and writes
+use R2, including photo uploads, photo deletion, and anime cover uploads.
+Supabase remains the PostgreSQL database and authentication provider. Photos
+store relative R2 keys; anime covers store R2 public URLs.
 
 ## Environment
 
@@ -74,19 +76,19 @@ an already-saved photo/cover. Photo completion is not guaranteed idempotent for
 simultaneous duplicate requests without a database uniqueness constraint.
 
 The photo uploader retains the Anime/Business category options but disables
-new uploads for those folders under the Phase 2 allowlist. Existing management
+new uploads for those folders under the current folder allowlist. Existing management
 pages and manual anime cover URL editing remain available.
 
-No active uploader falls back to Supabase Storage. Existing Supabase storage
-objects, image-host allowance, and Git history remain available for rollback.
-Rolling back upload code alone also requires coordinating photo read paths or
-copying newly uploaded Supabase objects to R2.
+Active media flows do not fall back to Supabase Storage, and the legacy Supabase
+Storage image allowance has been removed. The old Supabase `media` and
+`anime-covers` buckets remain pending separate cleanup; they have not been deleted
+as part of the migration.
 
-## Verification before enabling in production
+## Verification
 
 Run `npm run test:uploads`, `npx tsc --noEmit --incremental false`, and
 `npm run build`. Tests use fake R2 credentials and mocked storage/database calls.
 After configuring credentials and CORS, smoke-test one food upload, one car
 upload, and an anime cover replacement while signed in as an admin. Verify the
 public images and DB reference formats, and check that signed-out requests
-return 401 and non-admin requests return 403. Do not bulk-migrate existing URLs.
+return 401 and non-admin requests return 403.

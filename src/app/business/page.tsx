@@ -190,7 +190,8 @@ export default function ProjectsPage() {
           <div className="space-y-1">
             <p className="font-semibold text-slate-200">Backend &amp; data</p>
             <ul className="space-y-1 list-disc pl-4">
-              <li>Supabase (Postgres, auth, storage)</li>
+              <li>Supabase for PostgreSQL and auth</li>
+              <li>Cloudflare R2 for media storage</li>
               <li>Row-level security for multi-tenant data</li>
               <li>SQL views for reports &amp; dashboards</li>
             </ul>
