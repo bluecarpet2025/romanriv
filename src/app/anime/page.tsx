@@ -1,5 +1,6 @@
 // src/app/anime/page.tsx
-import AnimeMediaGrid, { type PublicAnimeRow } from "@/components/AnimeMediaGrid";
+import type { PublicAnimeRow } from "@/components/AnimeMediaGrid";
+import AnimeMediaBrowser from "@/components/AnimeMediaBrowser";
 import styles from "@/components/PublicMedia.module.css";
 import { supabase } from "@/lib/supabase";
 
@@ -60,13 +61,6 @@ async function getAnime(): Promise<AnimeRow[]> {
 
 export default async function AnimePage() {
   const all = await getAnime();
-  // Filtering preserves the existing sort_order, then title ordering in each section.
-  const sections = [
-    { id: "watching", title: "Currently watching", description: "Shows I’m actively working through.", rows: all.filter((a) => a.status === "watching") },
-    { id: "planned", title: "Planned", description: "On the radar, just not started yet.", rows: all.filter((a) => a.status === "planned") },
-    { id: "completed", title: "Completed", description: "Finished shows.", rows: all.filter((a) => a.status === "watched") },
-    { id: "other", title: "Other", description: "On hold, dropped, and everything in between.", rows: all.filter((a) => !["watching", "watched", "planned"].includes(a.status)) },
-  ];
 
   return (
     <div className={styles.shell}>
@@ -83,20 +77,7 @@ export default async function AnimePage() {
         </p>
       </header>
 
-      {sections.filter((section) => section.rows.length > 0).map((section) => (
-        <section key={section.id} className={styles.section} aria-labelledby={`${section.id}-heading`}>
-          <div className={styles.sectionHeader}>
-            <h2 id={`${section.id}-heading`}>{section.title} <span className={styles.count}>{section.rows.length}</span></h2>
-            <p>{section.description}</p>
-          </div>
-          <AnimeMediaGrid rows={section.rows} />
-        </section>
-      ))}
-      {all.length === 0 ? (
-        <section className={styles.section} aria-label="Watchlist">
-          <p className={styles.empty}>The watchlist is empty for now. Check back for the first title.</p>
-        </section>
-      ) : null}
+      <AnimeMediaBrowser rows={all} />
     </div>
   );
 }

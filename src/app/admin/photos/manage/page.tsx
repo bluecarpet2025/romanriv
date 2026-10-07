@@ -6,6 +6,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { getMediaPublicUrl } from "@/lib/supabase";
 import { createSupabaseBrowser } from "@/lib/supabaseAuth";
 import ImageViewer from "@/components/ImageViewer";
+import MediaToolbar from "@/components/MediaToolbar";
+import { browseMedia, PHOTO_SORT_OPTIONS, type MediaSort } from "@/lib/media-browsing";
 import styles from "./page.module.css";
 
 type CategoryValue = "food" | "car" | "anime" | "business";
@@ -23,6 +25,7 @@ type PhotoRow = {
   likes_count: number | null;
   views_count: number | null;
   created_at: string | null;
+  image_timestamp: string | null;
 };
 type EditablePhoto = PhotoRow & {
   tagsText: string;
@@ -38,23 +41,34 @@ export default function ManagePhotosPage() {
   const [category, setCategory] = useState<CategoryValue>("food");
   const [revision, setRevision] = useState(0);
   const [photos, setPhotos] = useState<EditablePhoto[]>([]);
+  const [savedPhotos, setSavedPhotos] = useState<PhotoRow[]>([]);
+  const [search, setSearch] = useState("");
+  const [sort, setSort] = useState<MediaSort>("newest");
   const [loading, setLoading] = useState(true);
   const [globalError, setGlobalError] = useState<string | null>(null);
   const [notice, setNotice] = useState("");
   const [viewing, setViewing] = useState<{ src: string; alt: string } | null>(null);
   const pending = useRef(new Set<PhotoRow["id"]>());
   const busy = photos.some((photo) => !!photo.busy);
+  const visibleRows = useMemo(() => browseMedia(savedPhotos, { search, sort }, (photo) => ({
+    title: photo.title, description: photo.description, tags: photo.tags, imagePath: photo.image_path,
+    timestamp: photo.image_timestamp ?? photo.created_at, likes: photo.likes_count, views: photo.views_count,
+  })).visibleItems, [savedPhotos, search, sort]);
+  const draftsById = useMemo(() => new Map(photos.map((photo) => [photo.id, photo])), [photos]);
+  const visiblePhotos = visibleRows.map((row) => draftsById.get(row.id)!);
 
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
       try {
         const { data, error } = await supabase.from("photos")
-          .select("id, category, title, description, image_path, tags, likes_count, views_count, created_at")
+          .select("id, category, title, description, image_path, tags, likes_count, views_count, created_at, image_timestamp")
           .eq("category", category).order("created_at", { ascending: false });
         if (cancelled) return;
         if (error) throw new Error(error.message);
-        setPhotos((data as PhotoRow[] ?? []).map((row) => ({ ...row, tagsText: (row.tags ?? []).join(", ") })));
+        const rows = (data as PhotoRow[] ?? []);
+        setSavedPhotos(rows);
+        setPhotos(rows.map((row) => ({ ...row, tagsText: (row.tags ?? []).join(", ") })));
       } catch (error) {
         if (!cancelled) setGlobalError(error instanceof Error ? error.message : "Could not load photos.");
       } finally {
@@ -71,6 +85,7 @@ export default function ManagePhotosPage() {
     setGlobalError(null);
     setNotice("");
     setPhotos([]);
+    setSavedPhotos([]);
     setCategory(nextCategory);
     setRevision((value) => value + 1);
   }
@@ -92,6 +107,9 @@ export default function ManagePhotosPage() {
       if (error) throw new Error(error.message);
       if (!data) throw new Error("Photo was not saved. Refresh the list and check your access.");
       patchPhoto(photo.id, { tags, success: "Saved" });
+      setSavedPhotos((previous) => previous.map((row) => row.id === photo.id ? {
+        ...row, title: photo.title, description: photo.description, tags,
+      } : row));
     } catch (error) {
       patchPhoto(photo.id, { error: error instanceof Error ? error.message : "Could not save this photo." });
     } finally {
@@ -111,6 +129,7 @@ export default function ManagePhotosPage() {
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Could not delete this photo.");
       setPhotos((previous) => previous.filter((item) => item.id !== photo.id));
+      setSavedPhotos((previous) => previous.filter((item) => item.id !== photo.id));
       setNotice("Deleted photo " + photo.id + ".");
     } catch (error) {
       patchPhoto(photo.id, { error: error instanceof Error ? error.message : "Could not delete this photo. Refresh to check its status." });
@@ -130,22 +149,18 @@ export default function ManagePhotosPage() {
         </div>
         <Link href="/admin/photos" className={styles.uploadLink}>Upload photos ↗</Link>
       </header>
-      <div className={styles.toolbar}>
-        <label>Category
-          <select value={category} disabled={busy} onChange={(event) => refresh(event.target.value as CategoryValue)}>
-            {CATEGORIES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
-          </select>
-        </label>
-        <button type="button" onClick={() => refresh()} disabled={loading || busy}>Refresh</button>
-        <span className={styles.count}>{loading ? "Loading…" : photos.length + " photos"}</span>
-        <span className={styles.hint}>Changes save per card.</span>
-      </div>
+      <MediaToolbar search={search} onSearchChange={setSearch} searchPlaceholder="Title, description, tags, or image path"
+        sort={sort} onSortChange={setSort} sortOptions={PHOTO_SORT_OPTIONS}
+        filter={{ label: "Category", value: category, options: CATEGORIES, disabled: loading || busy, onChange: (value) => refresh(value as CategoryValue) }}
+        visibleCount={visiblePhotos.length} totalCount={savedPhotos.length} noun="photos" loading={loading}
+        onReset={() => { setSearch(""); setSort("newest"); }} onRefresh={() => refresh()} refreshDisabled={loading || busy} />
       {globalError && <p role="alert" className={styles.error}>Could not load photos: {globalError}</p>}
       {notice && <p role="status" className={styles.success}>{notice}</p>}
       {loading && <p role="status" className={styles.empty}>Loading photos…</p>}
       {!loading && !globalError && photos.length === 0 && <p className={styles.empty}>No photos in this category.</p>}
+      {!loading && !globalError && photos.length > 0 && visiblePhotos.length === 0 && <p className={styles.empty}>No photos match your search. Try another search or reset the controls.</p>}
       <div className={styles.grid}>
-        {photos.map((photo) => (
+        {visiblePhotos.map((photo) => (
           <article key={photo.id} className={styles.photoCard} aria-label={"Photo " + photo.id} aria-busy={!!photo.busy}>
             <div className={styles.previewRow}>
               <div className={styles.thumbnail}>

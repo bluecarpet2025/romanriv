@@ -44,7 +44,7 @@ async function getFoodPhotos(): Promise<FoodItem[]> {
   const { data, error } = await supabase
     .from("photos")
     .select(
-      "id, title, description, image_path, tags, category, created_at, likes, views"
+      "id, title, description, image_path, tags, category, created_at, image_timestamp, likes, views"
     )
     .eq("category", "food")
     .order("image_timestamp", { ascending: false })
@@ -60,6 +60,7 @@ async function getFoodPhotos(): Promise<FoodItem[]> {
     tags: (row.tags as string[]) ?? [],
     likes: row.likes ?? 0,
     views: row.views ?? 0,
+    timestamp: row.image_timestamp ?? row.created_at,
   }));
 }
 

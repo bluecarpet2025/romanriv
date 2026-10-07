@@ -1,0 +1,18 @@
+.toolbar { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; margin-bottom: 20px; padding: 16px; border: 1px solid #243149; border-radius: 12px; background: #0f172a; color: #e2e8f0; }
+.toolbar * { box-sizing: border-box; }
+.toolbar label { display: flex; flex-direction: column; gap: 5px; max-width: 100%; color: #cbd5e1; font-size: 11px; font-weight: 600; }
+.toolbar .search { flex: 1 1 220px; min-width: 0; }
+.toolbar input, .toolbar select { min-width: 0; max-width: 100%; padding: 8px 9px; border: 1px solid #334155; border-radius: 6px; background: #0a1222; color: #e2e8f0; font: inherit; font-size: 13px; font-weight: 400; }
+.toolbar .check { flex-direction: row; align-items: center; gap: 7px; min-height: 35px; }
+.check input { width: 16px; height: 16px; margin: 0; accent-color: #38bdf8; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.toolbar button { min-height: 35px; padding: 8px 12px; border: 1px solid #334155; border-radius: 6px; background: #1e293b; color: #e2e8f0; font-size: 12px; font-weight: 600; cursor: pointer; }
+.toolbar button:hover { border-color: #38bdf8; color: #7dd3fc; }
+.toolbar button:disabled, .toolbar select:disabled { opacity: 0.6; cursor: wait; }
+.toolbar :is(input, select, button):focus-visible { outline: 2px solid #38bdf8; outline-offset: 3px; }
+.count { align-self: center; color: #94a3b8; font-size: 12px; font-variant-numeric: tabular-nums; }
+@media (max-width: 480px) {
+  .toolbar { padding: 12px; gap: 10px; }
+  .toolbar .search { flex-basis: 100%; }
+  .count { flex-basis: 100%; }
+}

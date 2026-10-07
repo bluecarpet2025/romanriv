@@ -6,6 +6,8 @@
 .header p:not(.eyebrow) { max-width: 72ch; margin: 14px 0 0; color: #cbd5e1; font-size: 14px; line-height: 1.7; }
 .header p.secondary { color: #94a3b8; font-size: 13px; }
 .section { margin-top: 32px; }
+.browser { margin-top: 32px; }
+.card[hidden], .section[hidden] { display: none; }
 .sectionHeader { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 16px; margin-bottom: 16px; }
 .sectionHeader h2 { display: flex; align-items: center; gap: 10px; margin: 0; font-size: 19px; letter-spacing: -0.4px; }
 .sectionHeader p { margin: 0; color: #94a3b8; font-size: 12px; line-height: 1.5; }

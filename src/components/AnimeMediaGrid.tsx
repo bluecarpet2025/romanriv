@@ -27,11 +27,11 @@ const statusLabels: Record<string, string> = {
   dropped: "Dropped",
 };
 
-export default function AnimeMediaGrid({ rows }: { rows: PublicAnimeRow[] }) {
+export default function AnimeMediaGrid({ rows, visibleIds }: { rows: PublicAnimeRow[]; visibleIds?: ReadonlySet<string> }) {
   return (
     <div className={styles.animeGrid}>
       {rows.map((row) => (
-        <article key={row.id} className={styles.card}>
+        <article key={row.id} className={styles.card} hidden={visibleIds ? !visibleIds.has(row.id) : false}>
           <PublicMediaImage src={row.coverUrl} alt={row.title} poster />
           <div className={styles.content}>
             <div className={styles.titleRow}>

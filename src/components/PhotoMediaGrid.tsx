@@ -1,3 +1,8 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import { browseMedia, PHOTO_SORT_OPTIONS, type MediaSort } from "@/lib/media-browsing";
+import MediaToolbar from "./MediaToolbar";
 import { LikeButton } from "./LikeButton";
 import PublicMediaImage from "./PublicMediaImage";
 import styles from "./PublicMedia.module.css";
@@ -10,6 +15,7 @@ export type PhotoMediaItem = {
   tags: string[];
   likes: number;
   views: number;
+  timestamp?: string | null;
 };
 
 export function MediaTags({ tags }: { tags: string[] }) {
@@ -25,12 +31,23 @@ export default function PhotoMediaGrid({ items, emptyMessage }: {
   items: PhotoMediaItem[];
   emptyMessage: string;
 }) {
-  if (!items.length) return <p className={styles.empty}>{emptyMessage}</p>;
+  const [search, setSearch] = useState("");
+  const [sort, setSort] = useState<MediaSort>("newest");
+  const { sortedItems, visibleItems } = useMemo(() => browseMedia(items, { search, sort }, (item) => ({
+    title: item.title, description: item.subtitle, tags: item.tags, timestamp: item.timestamp, likes: item.likes, views: item.views,
+  })), [items, search, sort]);
+  const visibleIds = new Set(visibleItems.map((item) => item.id));
 
   return (
-    <div className={styles.photoGrid}>
-      {items.map((item) => (
-        <article key={item.id} className={styles.card}>
+    <>
+      <MediaToolbar search={search} onSearchChange={setSearch} searchPlaceholder="Title, description, or tags"
+        sort={sort} onSortChange={setSort} sortOptions={PHOTO_SORT_OPTIONS}
+        visibleCount={visibleItems.length} totalCount={items.length} noun="photos"
+        onReset={() => { setSearch(""); setSort("newest"); }} />
+      {visibleItems.length === 0 ? <p className={styles.empty}>{items.length ? "No photos match your search. Try another search or reset the controls." : emptyMessage}</p> : null}
+      <div className={styles.photoGrid}>
+      {sortedItems.map((item) => (
+        <article key={item.id} className={styles.card} hidden={!visibleIds.has(item.id)}>
           <PublicMediaImage src={item.imageUrl} alt={item.title} />
           <div className={styles.content}>
             <h3 className={styles.cardTitle}>{item.title}</h3>
@@ -45,6 +62,7 @@ export default function PhotoMediaGrid({ items, emptyMessage }: {
           </div>
         </article>
       ))}
-    </div>
+      </div>
+    </>
   );
 }
