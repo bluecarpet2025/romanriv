@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import ImageViewer from "./ImageViewer";
 import styles from "./PublicMedia.module.css";
 
@@ -9,12 +9,24 @@ type Props = {
   src: string | null;
   alt: string;
   poster?: boolean;
+  onOpen?: () => void;
 };
 
 /** Only the thumbnail owns viewer state; the surrounding card stays mounted. */
-export default function PublicMediaImage({ src, alt, poster = false }: Props) {
+export default function PublicMediaImage({ src, alt, poster = false, onOpen }: Props) {
   const [open, setOpen] = useState(false);
   const [failed, setFailed] = useState(false);
+  const opened = useRef(false);
+  function openViewer() {
+    if (opened.current) return;
+    opened.current = true;
+    setOpen(true);
+    onOpen?.();
+  }
+  function closeViewer() {
+    opened.current = false;
+    setOpen(false);
+  }
   const frameClass = `${styles.imageFrame} ${poster ? styles.poster : styles.photo}`;
 
   if (!src || failed) {
@@ -36,7 +48,7 @@ export default function PublicMediaImage({ src, alt, poster = false }: Props) {
         className={`${frameClass} ${styles.imageButton}`}
         aria-label={`View image: ${alt}`}
         aria-haspopup="dialog"
-        onClick={() => setOpen(true)}
+        onClick={openViewer}
       >
         <Image
           src={src}
@@ -50,7 +62,7 @@ export default function PublicMediaImage({ src, alt, poster = false }: Props) {
         />
         <span className={styles.viewHint} aria-hidden="true">View image</span>
       </button>
-      {open ? <ImageViewer src={src} alt={alt} onClose={() => setOpen(false)} /> : null}
+      {open ? <ImageViewer src={src} alt={alt} onClose={closeViewer} /> : null}
     </>
   );
 }

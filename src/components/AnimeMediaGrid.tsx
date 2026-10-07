@@ -1,7 +1,9 @@
+"use client";
+
 import { AnimeLikeButton } from "./AnimeLikeButton";
-import { AnimeViewTracker } from "./AnimeViewTracker";
 import { MediaTags } from "./PhotoMediaGrid";
 import PublicMediaImage from "./PublicMediaImage";
+import { useMediaViews } from "./useMediaCounters";
 import styles from "./PublicMedia.module.css";
 
 export type PublicAnimeRow = {
@@ -27,12 +29,11 @@ const statusLabels: Record<string, string> = {
   dropped: "Dropped",
 };
 
-export default function AnimeMediaGrid({ rows, visibleIds }: { rows: PublicAnimeRow[]; visibleIds?: ReadonlySet<string> }) {
+function AnimeMediaCard({ row, hidden }: { row: PublicAnimeRow; hidden: boolean }) {
+  const { views, onOpen } = useMediaViews("anime", String(row.id), row.views);
   return (
-    <div className={styles.animeGrid}>
-      {rows.map((row) => (
-        <article key={row.id} className={styles.card} hidden={visibleIds ? !visibleIds.has(row.id) : false}>
-          <PublicMediaImage src={row.coverUrl} alt={row.title} poster />
+        <article className={styles.card} hidden={hidden}>
+          <PublicMediaImage src={row.coverUrl} alt={row.title} poster onOpen={onOpen} />
           <div className={styles.content}>
             <div className={styles.titleRow}>
               <h3 className={styles.cardTitle}>{row.title}</h3>
@@ -53,13 +54,20 @@ export default function AnimeMediaGrid({ rows, visibleIds }: { rows: PublicAnime
             ) : null}
             <div className={styles.stats}>
               <AnimeLikeButton animeId={row.id} initialLikes={row.likes} />
-              <span className={styles.views} aria-label={`${row.views} views`}>
-                <span aria-hidden="true">👁</span> {row.views}<span>views</span>
+              <span className={styles.views} aria-label={`${views} views`}>
+                <span aria-hidden="true">👁</span> {views}<span>views</span>
               </span>
             </div>
           </div>
-          <AnimeViewTracker id={row.id} />
         </article>
+  );
+}
+
+export default function AnimeMediaGrid({ rows, visibleIds }: { rows: PublicAnimeRow[]; visibleIds?: ReadonlySet<string> }) {
+  return (
+    <div className={styles.animeGrid}>
+      {rows.map((row) => (
+        <AnimeMediaCard key={row.id} row={row} hidden={visibleIds ? !visibleIds.has(row.id) : false} />
       ))}
     </div>
   );

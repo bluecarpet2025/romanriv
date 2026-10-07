@@ -2,7 +2,6 @@
 import PhotoMediaGrid, { type PhotoMediaItem } from "@/components/PhotoMediaGrid";
 import styles from "@/components/PublicMedia.module.css";
 import { supabase, getMediaPublicUrl } from "@/lib/supabase";
-import { PhotoViewTracker } from "@/components/PhotoViewTracker";
 
 export const metadata = {
   title: "Food | romanriv.com",
@@ -90,7 +89,6 @@ export default async function FoodPage() {
           <p>Open a photo for a closer look.</p>
         </div>
         <PhotoMediaGrid items={items} emptyMessage="No food photos yet. Check back for the next meal." />
-        <PhotoViewTracker ids={items.map((item) => item.id)} />
       </section>
     </div>
   );

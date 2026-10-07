@@ -2,7 +2,6 @@
 import PhotoMediaGrid, { type PhotoMediaItem } from "@/components/PhotoMediaGrid";
 import styles from "@/components/PublicMedia.module.css";
 import { supabase, getMediaPublicUrl } from "@/lib/supabase";
-import { PhotoViewTracker } from "@/components/PhotoViewTracker";
 
 export const metadata = {
   title: "Cars | romanriv.com",
@@ -89,7 +88,6 @@ export default async function CarsPage() {
           <p>Open a photo for a closer look.</p>
         </div>
         <PhotoMediaGrid items={items} emptyMessage="No car photos yet. Check back for the next drive." />
-        <PhotoViewTracker ids={items.map((item) => item.id)} />
       </section>
     </div>
   );

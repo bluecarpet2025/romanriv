@@ -1,83 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMediaLike } from "./useMediaCounters";
 
-type AnimeLikeButtonProps = {
-  animeId: string;
-  initialLikes: number;
-};
+type AnimeLikeButtonProps = { animeId: string; initialLikes: number };
 
-export function AnimeLikeButton({
-  animeId,
-  initialLikes,
-}: AnimeLikeButtonProps) {
-  const [likes, setLikes] = useState(initialLikes);
-  const [liked, setLiked] = useState(false);
-  const [loading, setLoading] = useState(false);
-
-  // Hydrate "liked" state from localStorage
-  useEffect(() => {
-    try {
-      const stored = window.localStorage.getItem(
-        `anime-liked-${animeId}`
-      );
-      if (stored === "1") {
-        setLiked(true);
-      }
-    } catch {
-      // ignore
-    }
-  }, [animeId]);
-
-  const handleToggle = async () => {
-    if (loading) return;
-    setLoading(true);
-
-    const nextLiked = !liked;
-    const delta = nextLiked ? 1 : -1;
-
-    try {
-      const res = await fetch("/api/anime/like", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: animeId, delta }),
-      });
-
-      if (!res.ok) {
-        console.error("Failed to toggle like", await res.text());
-        setLoading(false);
-        return;
-      }
-
-      const json = await res.json();
-      setLikes(json.likes ?? likes);
-
-      setLiked(nextLiked);
-      try {
-        if (nextLiked) {
-          window.localStorage.setItem(
-            `anime-liked-${animeId}`,
-            "1"
-          );
-        } else {
-          window.localStorage.removeItem(
-            `anime-liked-${animeId}`
-          );
-        }
-      } catch {
-        // ignore
-      }
-    } catch (err) {
-      console.error("Toggle like error", err);
-    } finally {
-      setLoading(false);
-    }
-  };
+export function AnimeLikeButton({ animeId, initialLikes }: AnimeLikeButtonProps) {
+  const { likes, liked, loading, toggle: handleToggle } = useMediaLike("anime", animeId, initialLikes);
 
   return (
     <button
       type="button"
       onClick={handleToggle}
+      aria-pressed={liked}
+      aria-label={liked ? "Unlike anime" : "Like anime"}
       disabled={loading}
       className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium transition
         ${

@@ -5,6 +5,7 @@ import { browseMedia, PHOTO_SORT_OPTIONS, type MediaSort } from "@/lib/media-bro
 import MediaToolbar from "./MediaToolbar";
 import { LikeButton } from "./LikeButton";
 import PublicMediaImage from "./PublicMediaImage";
+import { useMediaViews } from "./useMediaCounters";
 import styles from "./PublicMedia.module.css";
 
 export type PhotoMediaItem = {
@@ -27,6 +28,26 @@ export function MediaTags({ tags }: { tags: string[] }) {
   ) : <p className={styles.noTags}>No tags yet</p>;
 }
 
+function PhotoMediaCard({ item, hidden }: { item: PhotoMediaItem; hidden: boolean }) {
+  const { views, onOpen } = useMediaViews("photo", String(item.id), item.views);
+  return (
+        <article className={styles.card} hidden={hidden}>
+          <PublicMediaImage src={item.imageUrl} alt={item.title} onOpen={onOpen} />
+          <div className={styles.content}>
+            <h3 className={styles.cardTitle}>{item.title}</h3>
+            {item.subtitle ? <p className={styles.description}>{item.subtitle}</p> : null}
+            <MediaTags tags={item.tags} />
+            <div className={styles.stats}>
+              <LikeButton photoId={String(item.id)} initialLikes={item.likes} />
+              <span className={styles.views} aria-label={`${views} views`}>
+                <span aria-hidden="true">👁</span> {views}<span>views</span>
+              </span>
+            </div>
+          </div>
+        </article>
+  );
+}
+
 export default function PhotoMediaGrid({ items, emptyMessage }: {
   items: PhotoMediaItem[];
   emptyMessage: string;
@@ -47,20 +68,7 @@ export default function PhotoMediaGrid({ items, emptyMessage }: {
       {visibleItems.length === 0 ? <p className={styles.empty}>{items.length ? "No photos match your search. Try another search or reset the controls." : emptyMessage}</p> : null}
       <div className={styles.photoGrid}>
       {sortedItems.map((item) => (
-        <article key={item.id} className={styles.card} hidden={!visibleIds.has(item.id)}>
-          <PublicMediaImage src={item.imageUrl} alt={item.title} />
-          <div className={styles.content}>
-            <h3 className={styles.cardTitle}>{item.title}</h3>
-            {item.subtitle ? <p className={styles.description}>{item.subtitle}</p> : null}
-            <MediaTags tags={item.tags} />
-            <div className={styles.stats}>
-              <LikeButton photoId={String(item.id)} initialLikes={item.likes} />
-              <span className={styles.views} aria-label={`${item.views} views`}>
-                <span aria-hidden="true">👁</span> {item.views}<span>views</span>
-              </span>
-            </div>
-          </div>
-        </article>
+        <PhotoMediaCard key={item.id} item={item} hidden={!visibleIds.has(item.id)} />
       ))}
       </div>
     </>
