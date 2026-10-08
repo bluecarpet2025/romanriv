@@ -73,8 +73,8 @@ export default async function CarsPage() {
         <h1>Cars</h1>
         <p>
           I like cars that make driving feel like a hobby, not a chore. This
-          page starts with my current Blue Ice 2024 GR Corolla Circuit Edition,
-          and eventually becomes a timeline of the cars I&apos;ve owned and modified.
+          page starts with my current Blue Flame 2024 GR Corolla Circuit Edition,
+          and eventually becomes a timeline of the cars I&apos;ve owned and/or modified.
         </p>
         <p className={styles.secondary}>
           A visual log of the cars I&apos;ve owned or cared about. Each picture
