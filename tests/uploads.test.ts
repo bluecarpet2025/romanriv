@@ -157,7 +157,9 @@ describe("verified completion", () => {
   it("does not repeat a completed photo insert on a sequential retry", async () => {
     const upload = await presignImageUpload(photo, "admin-1", null);
     const { queries } = database([admin(), ok({ id: 1 })]);
-    expect((await complete(request({ token: upload.token }))).status).toBe(200);
+    const response = await complete(request({ token: upload.token }));
+    expect(response.status).toBe(200);
+    expect((await response.json()).photoId).toBe(1);
     expect(writes(queries)).toEqual([]);
   });
   it.each(["missing", "size", "type", "bytes", "public"])("does not write DB when R2 verification fails: %s", async (failure) => {
@@ -219,6 +221,26 @@ describe("verified completion", () => {
 });
 
 describe("browser upload flow", () => {
+  it.each([false, true])("requests food tags after successful completion; tagging failure=%s never undoes upload", async (failure) => {
+    const id = "00000000-0000-4000-8000-000000000001";
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(Response.json({ uploadUrl: "https://r2.example/signed", headers: {}, token: "receipt" }))
+      .mockResolvedValueOnce(new Response(null, { status: 200 }))
+      .mockResolvedValueOnce(Response.json({ key: "food/new.jpg", publicUrl: "https://media.example/food/new.jpg", photoId: id }))
+      .mockResolvedValueOnce(failure ? Response.json({ error: "Tagging unavailable" }, { status: 503 }) : Response.json({ tags: ["eggs"], skipped: false }));
+    const result = await uploadAdminImage(new File(["image"], "photo.jpg", { type: "image/jpeg" }), "food");
+    expect(result.key).toBe("food/new.jpg"); expect(result.photoId).toBe(id);
+    expect(result.tagging).toEqual(failure ? { error: "Tagging unavailable" } : { tags: ["eggs"] });
+    expect(fetch).toHaveBeenCalledTimes(4); expect(vi.mocked(fetch).mock.calls[3][0]).toBe(`/api/photos/${id}/auto-tag`);
+  });
+  it("never tags a car upload", async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(Response.json({ uploadUrl: "https://r2.example/signed", headers: {}, token: "receipt" }))
+      .mockResolvedValueOnce(new Response(null, { status: 200 }))
+      .mockResolvedValueOnce(Response.json({ key: "car/new.jpg", publicUrl: "https://media.example/car/new.jpg", photoId: "id" }));
+    const result = await uploadAdminImage(new File(["image"], "car.jpg", { type: "image/jpeg" }), "car");
+    expect(result.tagging).toBeUndefined(); expect(fetch).toHaveBeenCalledTimes(3);
+  });
   it("sends bytes only to the signed R2 URL, then sends only the receipt to completion", async () => {
     const file = new File(["image"], "cover.jpg", { type: "image/jpeg" });
     vi.mocked(fetch)

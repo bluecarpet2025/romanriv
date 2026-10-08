@@ -54,8 +54,10 @@ export default function AdminPhotosPage() {
       setLog([...messages]);
 
       try {
-        const { key } = await uploadAdminImage(file, category);
+        const { key, tagging } = await uploadAdminImage(file, category);
         messages.push(`✅ ${originalName}: uploaded and saved → ${key}`);
+        if (tagging?.error) messages.push(`⚠ ${originalName}: upload succeeded; ingredient tagging failed: ${tagging.error}`);
+        else if (tagging?.tags) messages.push(`Tags: ${tagging.tags.join(", ")}`);
 
         setLog([...messages]);
       } catch (err: unknown) {
@@ -88,8 +90,8 @@ export default function AdminPhotosPage() {
         </p>
 
         <p className="mt-2 text-xs text-slate-400">
-          Later we can add automatic titles/tags via n8n. For now, this saves the
-          filename as the title and leaves tags empty.
+          Filenames become titles. Food photos are automatically tagged with visible
+          ingredients after upload; tagging failures are logged separately. Car tags remain manual.
         </p>
 
         <div className="mt-4 flex flex-wrap gap-2">

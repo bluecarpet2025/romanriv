@@ -8,6 +8,8 @@ import { createSupabaseBrowser } from "@/lib/supabaseAuth";
 import ImageViewer from "@/components/ImageViewer";
 import MediaToolbar from "@/components/MediaToolbar";
 import { browseMedia, PHOTO_SORT_OPTIONS, type MediaSort } from "@/lib/media-browsing";
+import { hasFoodTags } from "@/lib/food-tags";
+import { requestFoodTags, runFoodTagBatch, type TagBatchProgress } from "@/lib/food-tagging-client";
 import styles from "./page.module.css";
 
 type CategoryValue = "food" | "car" | "anime" | "business";
@@ -29,7 +31,7 @@ type PhotoRow = {
 };
 type EditablePhoto = PhotoRow & {
   tagsText: string;
-  busy?: "save" | "delete";
+  busy?: "save" | "delete" | "tag";
   imageFailed?: boolean;
   error?: string;
   success?: string;
@@ -49,7 +51,15 @@ export default function ManagePhotosPage() {
   const [notice, setNotice] = useState("");
   const [viewing, setViewing] = useState<{ src: string; alt: string } | null>(null);
   const pending = useRef(new Set<PhotoRow["id"]>());
+  const currentPhotos = useRef<EditablePhoto[]>([]);
+  const tagController = useRef<AbortController | null>(null);
+  const [batch, setBatch] = useState<TagBatchProgress & { active: boolean; stopping: boolean; reason: string }>({
+    processed: 0, remaining: 0, failed: 0, total: 0, active: false, stopping: false, reason: "",
+  });
+  useEffect(() => { currentPhotos.current = photos; }, [photos]);
+  useEffect(() => () => tagController.current?.abort(), []);
   const busy = photos.some((photo) => !!photo.busy);
+  const untagged = photos.filter((photo) => photo.category === "food" && !hasFoodTags(photo.tags) && !hasFoodTags(photo.tagsText.split(",")));
   const visibleRows = useMemo(() => browseMedia(savedPhotos, { search, sort }, (photo) => ({
     title: photo.title, description: photo.description, tags: photo.tags, imagePath: photo.image_path,
     timestamp: photo.image_timestamp ?? photo.created_at, likes: photo.likes_count, views: photo.views_count,
@@ -80,7 +90,7 @@ export default function ManagePhotosPage() {
   }, [category, revision, supabase]);
 
   function refresh(nextCategory = category) {
-    if (pending.current.size) return;
+    if (pending.current.size || tagController.current) return;
     setLoading(true);
     setGlobalError(null);
     setNotice("");
@@ -94,6 +104,37 @@ export default function ManagePhotosPage() {
   }
   function updateField(id: PhotoRow["id"], field: EditableField, value: string | number) {
     patchPhoto(id, { [field]: value, error: undefined, success: undefined });
+  }
+  async function startTagging() {
+    if (tagController.current || pending.current.size || loading || category !== "food") return;
+    const controller = new AbortController();
+    tagController.current = controller;
+    setBatch({ processed: 0, remaining: untagged.length, failed: 0, total: untagged.length, active: true, stopping: false, reason: "" });
+    try {
+      const result = await runFoodTagBatch(untagged.map((photo) => photo.id), {
+        signal: controller.signal,
+        shouldSkip: (id) => {
+          const photo = currentPhotos.current.find((row) => row.id === id);
+          return !photo || pending.current.has(id) || hasFoodTags(photo.tags) || hasFoodTags(photo.tagsText.split(","));
+        },
+        tag: async (id, signal) => {
+          pending.current.add(id);
+          patchPhoto(id, { busy: "tag", error: undefined, success: undefined });
+          try { return await requestFoodTags(id, signal); }
+          finally { pending.current.delete(id); patchPhoto(id, { busy: undefined }); }
+        },
+        onResult: (id, result) => {
+          patchPhoto(id, { tags: result.tags, tagsText: result.tags.join(", "), success: result.skipped ? "Existing tags retained" : "Ingredients tagged automatically" });
+          setSavedPhotos((previous) => previous.map((row) => row.id === id ? { ...row, tags: result.tags } : row));
+        },
+        onError: (id, error) => patchPhoto(id, { error: error instanceof Error ? error.message : "Food tagging failed." }),
+        onProgress: (progress) => setBatch((previous) => ({ ...previous, ...progress })),
+      });
+      setBatch({ ...result, active: false, stopping: false });
+    } finally {
+      tagController.current = null;
+      setBatch((previous) => ({ ...previous, active: false, stopping: false }));
+    }
   }
   async function handleSave(photo: EditablePhoto) {
     if (pending.current.has(photo.id)) return;
@@ -151,9 +192,17 @@ export default function ManagePhotosPage() {
       </header>
       <MediaToolbar search={search} onSearchChange={setSearch} searchPlaceholder="Title, description, tags, or image path"
         sort={sort} onSortChange={setSort} sortOptions={PHOTO_SORT_OPTIONS}
-        filter={{ label: "Category", value: category, options: CATEGORIES, disabled: loading || busy, onChange: (value) => refresh(value as CategoryValue) }}
+        filter={{ label: "Category", value: category, options: CATEGORIES, disabled: loading || busy || batch.active, onChange: (value) => refresh(value as CategoryValue) }}
         visibleCount={visiblePhotos.length} totalCount={savedPhotos.length} noun="photos" loading={loading}
-        onReset={() => { setSearch(""); setSort("newest"); }} onRefresh={() => refresh()} refreshDisabled={loading || busy} />
+        onReset={() => { setSearch(""); setSort("newest"); }} onRefresh={() => refresh()} refreshDisabled={loading || busy || batch.active} />
+      {category === "food" ? (
+        <div className={styles.tagBatch}>
+          <div><strong>Ingredient tags</strong><p>Analyze {untagged.length} untagged food photos in this loaded category, one at a time. Manual tags are skipped.</p></div>
+          <button type="button" disabled={loading || busy || batch.active || !untagged.length} onClick={() => void startTagging()}>Auto-tag untagged food</button>
+          {batch.active ? <button type="button" disabled={batch.stopping} onClick={() => { tagController.current?.abort(); setBatch((previous) => ({ ...previous, stopping: true })); }}>{batch.stopping ? "Stopping…" : "Stop tagging"}</button> : null}
+          {batch.total > 0 ? <p className={styles.tagProgress} role="status">{batch.active ? "Tagging" : batch.reason}: {batch.processed} processed · {batch.remaining} remaining · {batch.failed} failed</p> : null}
+        </div>
+      ) : null}
       {globalError && <p role="alert" className={styles.error}>Could not load photos: {globalError}</p>}
       {notice && <p role="status" className={styles.success}>{notice}</p>}
       {loading && <p role="status" className={styles.empty}>Loading photos…</p>}
@@ -162,6 +211,7 @@ export default function ManagePhotosPage() {
       <div className={styles.grid}>
         {visiblePhotos.map((photo) => (
           <article key={photo.id} className={styles.photoCard} aria-label={"Photo " + photo.id} aria-busy={!!photo.busy}>
+            {photo.busy === "tag" ? <p role="status" className={styles.success}>Identifying visible ingredients…</p> : null}
             <div className={styles.previewRow}>
               <div className={styles.thumbnail}>
                 {photo.imageFailed || !photo.image_path ? (

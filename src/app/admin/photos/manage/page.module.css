@@ -45,6 +45,11 @@
 .error { color: #fda4af; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; margin: 12px 0 0; }
 .success { color: #6ee7b7; font-size: 12px; margin: 12px 0; }
 .empty { color: #94a3b8; padding: 28px 0; font-size: 14px; }
+.tagBatch { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 16px; margin-bottom: 20px; border: 1px solid #243149; border-radius: 12px; background: #0b1324; }
+.tagBatch > div { flex: 1 1 260px; }
+.tagBatch strong { font-size: 13px; color: #7dd3fc; }
+.tagBatch p { margin: 6px 0 0; color: #94a3b8; font-size: 12px; line-height: 1.5; }
+.tagBatch .tagProgress { width: 100%; overflow-wrap: anywhere; }
 @media (max-width: 480px) {
   .shell { padding: 24px 12px 36px; }
   .header { align-items: flex-start; flex-direction: column; }

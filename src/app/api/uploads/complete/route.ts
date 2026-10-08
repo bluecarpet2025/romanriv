@@ -11,6 +11,7 @@ export async function POST(request: Request) {
     const token = body && typeof body === "object" && "token" in body ? body.token : undefined;
     const ticket = readUploadTicket(token, user.id);
     const publicUrl = await verifyUploadedImage(ticket);
+    let photoId: string | undefined;
 
     if (ticket.input.folder === "anime-covers") {
       // Compare-and-swap protects a newer cover saved from another tab.
@@ -32,6 +33,7 @@ export async function POST(request: Request) {
       const { data: existing, error: readError } = await supabase.from("photos").select("id")
         .eq("image_path", ticket.key).maybeSingle();
       if (readError) throw new UploadError("Could not check the photo record.", 500);
+      photoId = existing?.id;
       if (!existing) {
         const { data, error } = await supabase.from("photos").insert({
           category: ticket.input.folder,
@@ -41,10 +43,11 @@ export async function POST(request: Request) {
           tags: [],
         }).select("id").single();
         if (error || !data) throw new UploadError("Image uploaded, but the photo record could not be saved.", 500);
+        photoId = data.id;
       }
     }
     // Keep old covers and unreferenced uploads for recovery; never delete here.
-    return Response.json({ key: ticket.key, publicUrl }, { headers: { "Cache-Control": "no-store" } });
+    return Response.json({ key: ticket.key, publicUrl, ...(photoId ? { photoId } : {}) }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     return uploadErrorResponse(error);
   }
