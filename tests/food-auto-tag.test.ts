@@ -72,6 +72,16 @@ describe("admin ingredient tagging", () => {
     const { calls } = database([admin(), photo()]); vi.mocked(analyzeFoodImage).mockRejectedValueOnce(new FoodTaggingError("Add: OPENAI_API_KEY, FOOD_TAGGING_MODEL", 503, "tagging_not_configured"));
     expect((await run()).status).toBe(503); expect(calls.some(c => c.method === "update")).toBe(false);
   });
+  it("keeps upstream diagnostics server-side and returns only the safe admin message", async () => {
+    const { calls } = database([admin(), photo()]);
+    vi.mocked(analyzeFoodImage).mockRejectedValueOnce(new FoodTaggingError("The API key does not have permission for Responses.", 503, "insufficient_key_permission", {
+      status: 403, type: "permission_error", code: "insufficient_permissions", message: "Upstream diagnostic details",
+    }));
+    const response = await run();
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({ error: "The API key does not have permission for Responses.", code: "insufficient_key_permission" });
+    expect(calls.some(c => c.method === "update")).toBe(false);
+  });
   it("does not overwrite a concurrent manual edit", async () => { database([admin(), photo(), ok(null)]); expect((await run()).status).toBe(409); });
   it("reports a DB save failure safely", async () => { database([admin(), photo(), { data: null, error: { message: "private DB details" } }]); const response = await run(); expect(response.status).toBe(500); expect(await response.text()).not.toContain("private DB details"); });
 });

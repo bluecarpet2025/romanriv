@@ -105,6 +105,24 @@ export default function ManagePhotosPage() {
   function updateField(id: PhotoRow["id"], field: EditableField, value: string | number) {
     patchPhoto(id, { [field]: value, error: undefined, success: undefined });
   }
+  function applyTags(id: PhotoRow["id"], result: { tags: string[]; skipped: boolean }) {
+    patchPhoto(id, { tags: result.tags, tagsText: result.tags.join(", "), success: result.skipped ? "Existing tags retained" : "Ingredients tagged automatically" });
+    setSavedPhotos((previous) => previous.map((row) => row.id === id ? { ...row, tags: result.tags } : row));
+  }
+  async function tagSinglePhoto(photo: EditablePhoto) {
+    if (tagController.current || pending.current.size || photo.category !== "food" || hasFoodTags(photo.tags) || hasFoodTags(photo.tagsText.split(","))) return;
+    const controller = new AbortController();
+    tagController.current = controller;
+    pending.current.add(photo.id);
+    patchPhoto(photo.id, { busy: "tag", error: undefined, success: undefined });
+    try { applyTags(photo.id, await requestFoodTags(photo.id, controller.signal)); }
+    catch (error) { if (!controller.signal.aborted) patchPhoto(photo.id, { error: error instanceof Error ? error.message : "Food tagging failed." }); }
+    finally {
+      pending.current.delete(photo.id);
+      tagController.current = null;
+      patchPhoto(photo.id, { busy: undefined });
+    }
+  }
   async function startTagging() {
     if (tagController.current || pending.current.size || loading || category !== "food") return;
     const controller = new AbortController();
@@ -123,10 +141,7 @@ export default function ManagePhotosPage() {
           try { return await requestFoodTags(id, signal); }
           finally { pending.current.delete(id); patchPhoto(id, { busy: undefined }); }
         },
-        onResult: (id, result) => {
-          patchPhoto(id, { tags: result.tags, tagsText: result.tags.join(", "), success: result.skipped ? "Existing tags retained" : "Ingredients tagged automatically" });
-          setSavedPhotos((previous) => previous.map((row) => row.id === id ? { ...row, tags: result.tags } : row));
-        },
+        onResult: applyTags,
         onError: (id, error) => patchPhoto(id, { error: error instanceof Error ? error.message : "Food tagging failed." }),
         onProgress: (progress) => setBatch((previous) => ({ ...previous, ...progress })),
       });
@@ -248,6 +263,8 @@ export default function ManagePhotosPage() {
                 <label>Tags <span className={styles.optional}>(comma-separated)</span><input value={photo.tagsText} onChange={(event) => updateField(photo.id, "tagsText", event.target.value)} /></label>
                 <div className={styles.actions}>
                   <button type="button" className={styles.deleteButton} onClick={() => void handleDelete(photo)}>{photo.busy === "delete" ? "Deleting…" : "Delete"}</button>
+                  {photo.category === "food" && !hasFoodTags(photo.tags) && !hasFoodTags(photo.tagsText.split(",")) ?
+                    <button type="button" aria-label="Auto-tag this photo" disabled={busy || batch.active} onClick={() => void tagSinglePhoto(photo)}>Auto-tag</button> : null}
                   <button type="submit" className={styles.saveButton}>{photo.busy === "save" ? "Saving…" : "Save"}</button>
                 </div>
               </fieldset>
